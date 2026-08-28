@@ -97,6 +97,12 @@ CREATE TABLE IF NOT EXISTS public.tournaments (
     start_at TIMESTAMP WITH TIME ZONE NOT NULL,
     end_at TIMESTAMP WITH TIME ZONE NOT NULL,
     
+    -- Cấu hình Check-in Ngày thi đấu & Giấy chứng nhận
+    checkin_open_at TIMESTAMP WITH TIME ZONE,
+    checkin_close_at TIMESTAMP WITH TIME ZONE,
+    checkin_qr_secret TEXT, -- Khóa sinh mã QR Check-in động cho BTC
+    certificate_template_url TEXT, -- Mẫu phôi giấy chứng nhận điện tử (SVG/HTML/PNG)
+    
     description TEXT,
     use_external_link BOOLEAN NOT NULL DEFAULT false,
     external_registration_url TEXT,
@@ -352,13 +358,80 @@ COMMENT ON TABLE public.match_games IS 'Chi tiết kết quả từng ván đấ
 -- =============================================================================
 -- 13. BẢNG notifications (Thông báo hệ thống cho Sinh viên & Quản trị)
 -- =============================================================================
+-- 13. BẢNG check_ins (Điểm danh Ngày thi đấu - QR/GPS/Minh chứng)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.check_ins (
+    id UUID NOT NULL DEFAULT uuid_generate_v4(),
+    tournament_id UUID NOT NULL,
+    registration_id UUID NOT NULL,
+    participant_id TEXT NOT NULL,
+    
+    checkin_method CHARACTER VARYING NOT NULL DEFAULT 'qr_scan', -- 'qr_scan', 'proof_submission', 'manual_admin'
+    status CHARACTER VARYING NOT NULL DEFAULT 'approved', -- 'approved', 'pending_review', 'rejected'
+    proof_url TEXT, -- Ảnh minh chứng nếu thí sinh submit ảnh
+    
+    -- Thu thập dữ liệu Geolocation & Device Fingerprint
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    location_accuracy DOUBLE PRECISION, -- mét
+    ip_address CHARACTER VARYING,
+    device_info TEXT, -- Trình duyệt, User-Agent, Fingerprint
+    
+    checked_in_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reviewed_by UUID, -- Admin hoặc CTV duyệt minh chứng
+    reviewed_at TIMESTAMP WITH TIME ZONE,
+    notes TEXT,
+    
+    CONSTRAINT check_ins_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_tournament_participant_checkin UNIQUE (tournament_id, participant_id),
+    CONSTRAINT fk_checkin_tournament FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE,
+    CONSTRAINT fk_checkin_registration FOREIGN KEY (registration_id) REFERENCES public.registrations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_checkin_participant FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE CASCADE,
+    CONSTRAINT fk_checkin_reviewed_by FOREIGN KEY (reviewed_by) REFERENCES public.users(id) ON DELETE SET NULL,
+    CONSTRAINT chk_checkin_method CHECK (checkin_method IN ('qr_scan', 'proof_submission', 'manual_admin')),
+    CONSTRAINT chk_checkin_status CHECK (status IN ('approved', 'pending_review', 'rejected'))
+);
+
+COMMENT ON TABLE public.check_ins IS 'Điểm danh ngày thi đấu qua Quét QR kèm GPS hoặc Submit ảnh minh chứng';
+
+-- =============================================================================
+-- 14. BẢNG certificates (Giấy chứng nhận Điện tử E-Certificate Tự Động Cấp)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.certificates (
+    id UUID NOT NULL DEFAULT uuid_generate_v4(),
+    tournament_id UUID NOT NULL,
+    participant_id TEXT NOT NULL,
+    registration_id UUID NOT NULL,
+    
+    certificate_code CHARACTER VARYING NOT NULL UNIQUE, -- Mã tra cứu duy nhất: DUT-CERT-2026-TFT-08492
+    title CHARACTER VARYING NOT NULL, -- 'Giấy Chứng Nhận Tham Gia Giải Đấu', 'Giấy Khen Vô Địch'
+    achievement_title CHARACTER VARYING, -- 'Vô Địch', 'Á Quân', 'Top 4', 'Vận Động Viên'
+    certificate_url TEXT NOT NULL, -- URL file PDF hoặc ảnh PNG kết xuất
+    qr_verify_url TEXT, -- Link tra cứu xác thực công khai
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb, -- Thông tin snapshot lúc cấp (Họ tên, MSSV, Điểm)
+    
+    is_revoked BOOLEAN NOT NULL DEFAULT false, -- Trạng thái thu hồi nếu gian lận
+    issued_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT certificates_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_tournament_participant_cert UNIQUE (tournament_id, participant_id),
+    CONSTRAINT fk_cert_tournament FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE,
+    CONSTRAINT fk_cert_participant FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE CASCADE,
+    CONSTRAINT fk_cert_registration FOREIGN KEY (registration_id) REFERENCES public.registrations(id) ON DELETE CASCADE
+);
+
+COMMENT ON TABLE public.certificates IS 'Giấy chứng nhận điện tử tự động xuất cho thí sinh đã hoàn thành check-in';
+
+-- =============================================================================
+-- 15. BẢNG notifications (Thông báo hệ thống cho Sinh viên & Quản trị)
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS public.notifications (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     recipient_type CHARACTER VARYING NOT NULL, -- 'user', 'participant'
     recipient_id TEXT NOT NULL, -- ID người nhận
     title TEXT NOT NULL,
     message TEXT NOT NULL,
-    type CHARACTER VARYING NOT NULL, -- 'kyc_status', 'team_request', 'match_schedule', 'system'
+    type CHARACTER VARYING NOT NULL, -- 'kyc_status', 'team_request', 'match_schedule', 'checkin_status', 'certificate_issued', 'system'
     metadata JSONB DEFAULT '{}'::jsonb, -- Link, ID trận, ID giải...
     is_read BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -370,13 +443,13 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 COMMENT ON TABLE public.notifications IS 'Hệ thống thông báo đẩy phục vụ kiến trúc Event-Driven';
 
 -- =============================================================================
--- 14. BẢNG audit_logs (Nhật ký thao tác hệ thống)
+-- 16. BẢNG audit_logs (Nhật ký thao tác hệ thống)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.audit_logs (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     actor_id TEXT NOT NULL, -- User/Participant ID thực hiện hành động
     actor_role CHARACTER VARYING NOT NULL, -- 'admin', 'ctv', 'participant', 'system'
-    action CHARACTER VARYING NOT NULL, -- 'APPROVE_STUDENT', 'CREATE_BRACKET', 'SUBMIT_SCORE'...
+    action CHARACTER VARYING NOT NULL, -- 'APPROVE_STUDENT', 'CREATE_BRACKET', 'APPROVE_CHECKIN', 'ISSUE_CERTIFICATE'...
     target_table CHARACTER VARYING NOT NULL,
     target_id TEXT,
     payload JSONB DEFAULT '{}'::jsonb,
@@ -389,7 +462,7 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
 COMMENT ON TABLE public.audit_logs IS 'Nhật ký kiểm tra phục vụ bảo mật và audit hành vi quản trị';
 
 -- =============================================================================
--- 15. THIẾT LẬP TẤT CẢ TRIGGERS TỰ ĐỘNG CẬP NHẬT updated_at
+-- 17. THIẾT LẬP TẤT CẢ TRIGGERS TỰ ĐỘNG CẬP NHẬT updated_at
 -- =============================================================================
 DROP TRIGGER IF EXISTS trg_users_updated_at ON public.users;
 CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -413,7 +486,7 @@ DROP TRIGGER IF EXISTS trg_matches_updated_at ON public.matches;
 CREATE TRIGGER trg_matches_updated_at BEFORE UPDATE ON public.matches FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- =============================================================================
--- 16. CHỈ MỤC TỐI ƯU HIỆU NĂNG TRUY VẤN (INDEXES)
+-- 18. CHỈ MỤC TỐI ƯU HIỆU NĂNG TRUY VẤN (INDEXES)
 -- =============================================================================
 -- Participants
 CREATE INDEX IF NOT EXISTS idx_participants_status ON public.participants(status);
@@ -450,6 +523,16 @@ CREATE INDEX IF NOT EXISTS idx_matches_status ON public.matches(status);
 CREATE INDEX IF NOT EXISTS idx_mp_match ON public.match_participants(match_id);
 CREATE INDEX IF NOT EXISTS idx_mp_registration ON public.match_participants(registration_id);
 CREATE INDEX IF NOT EXISTS idx_mg_match ON public.match_games(match_id);
+
+-- Check-ins
+CREATE INDEX IF NOT EXISTS idx_checkins_tournament ON public.check_ins(tournament_id);
+CREATE INDEX IF NOT EXISTS idx_checkins_participant ON public.check_ins(participant_id);
+CREATE INDEX IF NOT EXISTS idx_checkins_status ON public.check_ins(status);
+
+-- Certificates
+CREATE INDEX IF NOT EXISTS idx_certs_tournament ON public.certificates(tournament_id);
+CREATE INDEX IF NOT EXISTS idx_certs_participant ON public.certificates(participant_id);
+CREATE INDEX IF NOT EXISTS idx_certs_code ON public.certificates(certificate_code);
 
 -- Notifications & Audit
 CREATE INDEX IF NOT EXISTS idx_notif_recipient ON public.notifications(recipient_id, is_read);

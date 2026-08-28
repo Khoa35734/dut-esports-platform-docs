@@ -144,7 +144,59 @@ CREATE TABLE IF NOT EXISTS public.match_games (
     CONSTRAINT fk_mg_winner FOREIGN KEY (winner_registration_id) REFERENCES public.registrations(id) ON DELETE SET NULL
 );
 
--- 7. TẠO BẢNG notifications & audit_logs
+-- 7. CẬP NHẬT BẢNG tournaments (Cấu hình Check-in & Chứng nhận)
+ALTER TABLE public.tournaments ADD COLUMN IF NOT EXISTS checkin_open_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.tournaments ADD COLUMN IF NOT EXISTS checkin_close_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.tournaments ADD COLUMN IF NOT EXISTS checkin_qr_secret TEXT;
+ALTER TABLE public.tournaments ADD COLUMN IF NOT EXISTS certificate_template_url TEXT;
+
+-- 8. TẠO BẢNG check_ins (Điểm danh Ngày thi đấu - QR/GPS/Minh chứng)
+CREATE TABLE IF NOT EXISTS public.check_ins (
+    id UUID NOT NULL DEFAULT uuid_generate_v4(),
+    tournament_id UUID NOT NULL,
+    registration_id UUID NOT NULL,
+    participant_id TEXT NOT NULL,
+    checkin_method CHARACTER VARYING NOT NULL DEFAULT 'qr_scan',
+    status CHARACTER VARYING NOT NULL DEFAULT 'approved',
+    proof_url TEXT,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    location_accuracy DOUBLE PRECISION,
+    ip_address CHARACTER VARYING,
+    device_info TEXT,
+    checked_in_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reviewed_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    reviewed_at TIMESTAMP WITH TIME ZONE,
+    notes TEXT,
+    CONSTRAINT check_ins_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_tournament_participant_checkin UNIQUE (tournament_id, participant_id),
+    CONSTRAINT fk_checkin_tournament FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE,
+    CONSTRAINT fk_checkin_registration FOREIGN KEY (registration_id) REFERENCES public.registrations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_checkin_participant FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE CASCADE
+);
+
+-- 9. TẠO BẢNG certificates (Giấy chứng nhận Điện tử E-Certificate Tự Động Cấp)
+CREATE TABLE IF NOT EXISTS public.certificates (
+    id UUID NOT NULL DEFAULT uuid_generate_v4(),
+    tournament_id UUID NOT NULL,
+    participant_id TEXT NOT NULL,
+    registration_id UUID NOT NULL,
+    certificate_code CHARACTER VARYING NOT NULL UNIQUE,
+    title CHARACTER VARYING NOT NULL,
+    achievement_title CHARACTER VARYING,
+    certificate_url TEXT NOT NULL,
+    qr_verify_url TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    is_revoked BOOLEAN NOT NULL DEFAULT false,
+    issued_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT certificates_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_tournament_participant_cert UNIQUE (tournament_id, participant_id),
+    CONSTRAINT fk_cert_tournament FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE,
+    CONSTRAINT fk_cert_participant FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE CASCADE,
+    CONSTRAINT fk_cert_registration FOREIGN KEY (registration_id) REFERENCES public.registrations(id) ON DELETE CASCADE
+);
+
+-- 10. TẠO BẢNG notifications & audit_logs
 CREATE TABLE IF NOT EXISTS public.notifications (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     recipient_type CHARACTER VARYING NOT NULL,
