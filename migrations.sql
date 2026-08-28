@@ -196,7 +196,46 @@ CREATE TABLE IF NOT EXISTS public.certificates (
     CONSTRAINT fk_cert_registration FOREIGN KEY (registration_id) REFERENCES public.registrations(id) ON DELETE CASCADE
 );
 
--- 10. TẠO BẢNG notifications & audit_logs
+-- 10. TẠO BẢNG AI CHECK-IN (Liên Quân Mobile - Nhận diện chữ xanh)
+CREATE TABLE IF NOT EXISTS public.ai_checkin_sessions (
+    id UUID NOT NULL DEFAULT uuid_generate_v4(),
+    tournament_id UUID NOT NULL,
+    match_id UUID,
+    created_by UUID NOT NULL,
+    source_type CHARACTER VARYING NOT NULL DEFAULT 'congdong_lienquan',
+    status CHARACTER VARYING NOT NULL DEFAULT 'pending_review',
+    total_detected INTEGER DEFAULT 0,
+    total_matched INTEGER DEFAULT 0,
+    image_purged BOOLEAN NOT NULL DEFAULT false,
+    confirmed_by UUID,
+    confirmed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ai_checkin_sessions_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_aics_tournament FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE,
+    CONSTRAINT fk_aics_match FOREIGN KEY (match_id) REFERENCES public.matches(id) ON DELETE SET NULL,
+    CONSTRAINT fk_aics_created_by FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_aics_confirmed_by FOREIGN KEY (confirmed_by) REFERENCES public.users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.ai_checkin_detections (
+    id UUID NOT NULL DEFAULT uuid_generate_v4(),
+    session_id UUID NOT NULL,
+    raw_text TEXT NOT NULL,
+    ocr_confidence DOUBLE PRECISION,
+    bounding_box JSONB DEFAULT '{}'::jsonb,
+    matched_participant_id TEXT,
+    matched_registration_id UUID,
+    similarity_score DOUBLE PRECISION,
+    is_manually_adjusted BOOLEAN NOT NULL DEFAULT false,
+    is_confirmed BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ai_checkin_detections_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_aicd_session FOREIGN KEY (session_id) REFERENCES public.ai_checkin_sessions(id) ON DELETE CASCADE,
+    CONSTRAINT fk_aicd_participant FOREIGN KEY (matched_participant_id) REFERENCES public.participants(id) ON DELETE SET NULL,
+    CONSTRAINT fk_aicd_registration FOREIGN KEY (matched_registration_id) REFERENCES public.registrations(id) ON DELETE SET NULL
+);
+
+-- 11. TẠO BẢNG notifications & audit_logs
 CREATE TABLE IF NOT EXISTS public.notifications (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     recipient_type CHARACTER VARYING NOT NULL,

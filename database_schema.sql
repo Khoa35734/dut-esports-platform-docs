@@ -366,7 +366,7 @@ CREATE TABLE IF NOT EXISTS public.check_ins (
     registration_id UUID NOT NULL,
     participant_id TEXT NOT NULL,
     
-    checkin_method CHARACTER VARYING NOT NULL DEFAULT 'qr_scan', -- 'qr_scan', 'proof_submission', 'manual_admin'
+    checkin_method CHARACTER VARYING NOT NULL DEFAULT 'qr_scan', -- 'qr_scan', 'proof_submission', 'ai_ocr', 'manual_admin'
     status CHARACTER VARYING NOT NULL DEFAULT 'approved', -- 'approved', 'pending_review', 'rejected'
     proof_url TEXT, -- Ảnh minh chứng nếu thí sinh submit ảnh
     
@@ -378,7 +378,7 @@ CREATE TABLE IF NOT EXISTS public.check_ins (
     device_info TEXT, -- Trình duyệt, User-Agent, Fingerprint
     
     checked_in_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    reviewed_by UUID, -- Admin hoặc CTV duyệt minh chứng
+    reviewed_by UUID, -- Admin hoặc CTV duyệt minh chứng / xác nhận AI OCR
     reviewed_at TIMESTAMP WITH TIME ZONE,
     notes TEXT,
     
@@ -388,14 +388,66 @@ CREATE TABLE IF NOT EXISTS public.check_ins (
     CONSTRAINT fk_checkin_registration FOREIGN KEY (registration_id) REFERENCES public.registrations(id) ON DELETE CASCADE,
     CONSTRAINT fk_checkin_participant FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE CASCADE,
     CONSTRAINT fk_checkin_reviewed_by FOREIGN KEY (reviewed_by) REFERENCES public.users(id) ON DELETE SET NULL,
-    CONSTRAINT chk_checkin_method CHECK (checkin_method IN ('qr_scan', 'proof_submission', 'manual_admin')),
+    CONSTRAINT chk_checkin_method CHECK (checkin_method IN ('qr_scan', 'proof_submission', 'ai_ocr', 'manual_admin')),
     CONSTRAINT chk_checkin_status CHECK (status IN ('approved', 'pending_review', 'rejected'))
 );
 
-COMMENT ON TABLE public.check_ins IS 'Điểm danh ngày thi đấu qua Quét QR kèm GPS hoặc Submit ảnh minh chứng';
+COMMENT ON TABLE public.check_ins IS 'Điểm danh ngày thi đấu qua Quét QR kèm GPS, Submit ảnh minh chứng hoặc AI OCR';
 
 -- =============================================================================
--- 14. BẢNG certificates (Giấy chứng nhận Điện tử E-Certificate Tự Động Cấp)
+-- 14. BẢNG ai_checkin_sessions (Phiên phân tích AI Check-in Liên Quân Mobile)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.ai_checkin_sessions (
+    id UUID NOT NULL DEFAULT uuid_generate_v4(),
+    tournament_id UUID NOT NULL,
+    match_id UUID,
+    created_by UUID NOT NULL, -- CTV hoặc Admin tải ảnh lên
+    source_type CHARACTER VARYING NOT NULL DEFAULT 'congdong_lienquan', -- 'congdong_lienquan', 'custom_lobby'
+    status CHARACTER VARYING NOT NULL DEFAULT 'pending_review', -- 'processing', 'pending_review', 'confirmed', 'cancelled'
+    total_detected INTEGER DEFAULT 0,
+    total_matched INTEGER DEFAULT 0,
+    image_purged BOOLEAN NOT NULL DEFAULT false, -- Đánh dấu ảnh tạm đã bị xóa vĩnh viễn
+    confirmed_by UUID,
+    confirmed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT ai_checkin_sessions_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_aics_tournament FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE,
+    CONSTRAINT fk_aics_match FOREIGN KEY (match_id) REFERENCES public.matches(id) ON DELETE SET NULL,
+    CONSTRAINT fk_aics_created_by FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_aics_confirmed_by FOREIGN KEY (confirmed_by) REFERENCES public.users(id) ON DELETE SET NULL,
+    CONSTRAINT chk_aics_source_type CHECK (source_type IN ('congdong_lienquan', 'custom_lobby')),
+    CONSTRAINT chk_aics_status CHECK (status IN ('processing', 'pending_review', 'confirmed', 'cancelled'))
+);
+
+COMMENT ON TABLE public.ai_checkin_sessions IS 'Phiên phân tích nhận diện chữ xanh check-in Liên Quân Mobile qua AI';
+
+-- =============================================================================
+-- 15. BẢNG ai_checkin_detections (Chi tiết Bounding Box & Đề xuất Thí sinh Khớp)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.ai_checkin_detections (
+    id UUID NOT NULL DEFAULT uuid_generate_v4(),
+    session_id UUID NOT NULL,
+    raw_text TEXT NOT NULL, -- Text chữ xanh trích xuất
+    ocr_confidence DOUBLE PRECISION, -- Độ tin cậy OCR (0.0 - 1.0)
+    bounding_box JSONB DEFAULT '{}'::jsonb, -- Tọa độ khung chữ trên ảnh {x, y, w, h}
+    matched_participant_id TEXT, -- Thí sinh hệ thống nhận diện khớp
+    matched_registration_id UUID, -- Đội của thí sinh
+    similarity_score DOUBLE PRECISION, -- Điểm tương đồng Fuzzy Match (0.0 - 1.0)
+    is_manually_adjusted BOOLEAN NOT NULL DEFAULT false, -- Trọng tài đã sửa tay
+    is_confirmed BOOLEAN NOT NULL DEFAULT true, -- Được chọn check-in
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT ai_checkin_detections_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_aicd_session FOREIGN KEY (session_id) REFERENCES public.ai_checkin_sessions(id) ON DELETE CASCADE,
+    CONSTRAINT fk_aicd_participant FOREIGN KEY (matched_participant_id) REFERENCES public.participants(id) ON DELETE SET NULL,
+    CONSTRAINT fk_aicd_registration FOREIGN KEY (matched_registration_id) REFERENCES public.registrations(id) ON DELETE SET NULL
+);
+
+COMMENT ON TABLE public.ai_checkin_detections IS 'Chi tiết các vị trí chữ xanh và đề xuất thí sinh tương ứng';
+
+-- =============================================================================
+-- 16. BẢNG certificates (Giấy chứng nhận Điện tử E-Certificate Tự Động Cấp)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.certificates (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
@@ -528,6 +580,14 @@ CREATE INDEX IF NOT EXISTS idx_mg_match ON public.match_games(match_id);
 CREATE INDEX IF NOT EXISTS idx_checkins_tournament ON public.check_ins(tournament_id);
 CREATE INDEX IF NOT EXISTS idx_checkins_participant ON public.check_ins(participant_id);
 CREATE INDEX IF NOT EXISTS idx_checkins_status ON public.check_ins(status);
+CREATE INDEX IF NOT EXISTS idx_checkins_method ON public.check_ins(checkin_method);
+
+-- AI Check-in Sessions & Detections
+CREATE INDEX IF NOT EXISTS idx_aics_tournament ON public.ai_checkin_sessions(tournament_id);
+CREATE INDEX IF NOT EXISTS idx_aics_match ON public.ai_checkin_sessions(match_id);
+CREATE INDEX IF NOT EXISTS idx_aics_status ON public.ai_checkin_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_aicd_session ON public.ai_checkin_detections(session_id);
+CREATE INDEX IF NOT EXISTS idx_aicd_participant ON public.ai_checkin_detections(matched_participant_id);
 
 -- Certificates
 CREATE INDEX IF NOT EXISTS idx_certs_tournament ON public.certificates(tournament_id);
