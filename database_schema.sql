@@ -126,25 +126,42 @@ CREATE TABLE IF NOT EXISTS public.tournaments (
 COMMENT ON TABLE public.tournaments IS 'Bảng thông tin các giải đấu esports';
 
 -- =============================================================================
--- 4. BẢNG tournament_organizers (Phân quyền CTV Đồng tổ chức giải)
+-- 4. BẢNG tournament_organizers (Phân quyền Ban tổ chức & CTV Thường trực / CTV Thời vụ)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.tournament_organizers (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     tournament_id UUID NOT NULL,
-    user_id UUID NOT NULL,
-    role CHARACTER VARYING NOT NULL DEFAULT 'co_organizer', -- 'lead_organizer', 'co_organizer', 'referee'
-    assigned_by UUID, -- Admin thực hiện thêm CTV
+    
+    -- Phân loại: CTV thường trực (users) hoặc CTV thời vụ (sinh viên từ participants)
+    organizer_type CHARACTER VARYING NOT NULL DEFAULT 'permanent', -- 'permanent' (CTV thường trực), 'seasonal' (CTV thời vụ)
+    user_id UUID, -- Liên kết users (Admin/CTV thường trực)
+    participant_id TEXT, -- Liên kết participants (Sinh viên làm CTV thời vụ)
+    
+    role CHARACTER VARYING NOT NULL DEFAULT 'co_organizer', -- 'lead_organizer', 'co_organizer', 'referee', 'seasonal_staff', 'support_staff'
+    custom_title CHARACTER VARYING, -- Tên hiển thị vai trò (VD: 'CTV Điều phối & Điểm danh', 'Trọng tài bàn', 'Ban Kỹ thuật')
+    
+    assigned_by UUID, -- Admin hoặc CTV thường trực phụ trách giải gán quyền
     assigned_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     CONSTRAINT tournament_organizers_pkey PRIMARY KEY (id),
-    CONSTRAINT uq_tournament_user UNIQUE (tournament_id, user_id),
     CONSTRAINT fk_to_tournament FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE,
     CONSTRAINT fk_to_user FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_to_participant FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE CASCADE,
     CONSTRAINT fk_to_assigned_by FOREIGN KEY (assigned_by) REFERENCES public.users(id) ON DELETE SET NULL,
-    CONSTRAINT chk_organizer_role CHECK (role IN ('lead_organizer', 'co_organizer', 'referee'))
+    CONSTRAINT chk_organizer_type CHECK (organizer_type IN ('permanent', 'seasonal')),
+    CONSTRAINT chk_organizer_target CHECK (
+        (organizer_type = 'permanent' AND user_id IS NOT NULL AND participant_id IS NULL) OR
+        (organizer_type = 'seasonal' AND participant_id IS NOT NULL AND user_id IS NULL)
+    ),
+    CONSTRAINT chk_organizer_role CHECK (role IN ('lead_organizer', 'co_organizer', 'referee', 'seasonal_staff', 'support_staff'))
 );
 
-COMMENT ON TABLE public.tournament_organizers IS 'Danh sách CTV được Admin phân quyền đồng tổ chức hoặc làm trọng tài giải đấu';
+CREATE UNIQUE INDEX IF NOT EXISTS uq_to_user ON public.tournament_organizers(tournament_id, user_id) WHERE user_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_to_participant ON public.tournament_organizers(tournament_id, participant_id) WHERE participant_id IS NOT NULL;
+
+COMMENT ON TABLE public.tournament_organizers IS 'Ban tổ chức giải đấu bao gồm CTV Thường trực (users) và CTV Thời vụ (sinh viên từ participants)';
+COMMENT ON COLUMN public.tournament_organizers.organizer_type IS 'Phân loại: permanent (CTV thường trực), seasonal (CTV thời vụ là sinh viên)';
+COMMENT ON COLUMN public.tournament_organizers.custom_title IS 'Tên vai trò hiển thị trên giấy chứng nhận BTC (VD: CTV Điều phối, Trọng tài)';
 
 -- =============================================================================
 -- 5. BẢNG registrations (Đơn đăng ký tham gia giải đấu)
@@ -447,35 +464,47 @@ CREATE TABLE IF NOT EXISTS public.ai_checkin_detections (
 COMMENT ON TABLE public.ai_checkin_detections IS 'Chi tiết các vị trí chữ xanh và đề xuất thí sinh tương ứng';
 
 -- =============================================================================
--- 16. BẢNG certificates (Giấy chứng nhận Điện tử E-Certificate Tự Động Cấp)
+-- 15. BẢNG certificates (Giấy chứng nhận Điện tử E-Certificate cho VĐV & Ban tổ chức/CTV)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.certificates (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     tournament_id UUID NOT NULL,
-    participant_id TEXT NOT NULL,
-    registration_id UUID NOT NULL,
+    
+    -- Loại chứng chỉ: 'participant' (VĐV/Người chơi thi đấu), 'organizer' (Ban tổ chức/CTV thời vụ)
+    certificate_type CHARACTER VARYING NOT NULL DEFAULT 'participant', -- 'participant', 'organizer'
+    
+    participant_id TEXT NOT NULL, -- Sinh viên nhận chứng chỉ (VĐV hoặc CTV thời vụ)
+    registration_id UUID, -- Đơn đăng ký thi đấu (Bắt buộc với VĐV, NULL với CTV)
+    organizer_id UUID, -- Liên kết vị trí trong ban tổ chức (Dành cho CTV thời vụ / BTC)
     
     certificate_code CHARACTER VARYING NOT NULL UNIQUE, -- Mã tra cứu duy nhất: DUT-CERT-2026-TFT-08492
-    title CHARACTER VARYING NOT NULL, -- 'Giấy Chứng Nhận Tham Gia Giải Đấu', 'Giấy Khen Vô Địch'
-    achievement_title CHARACTER VARYING, -- 'Vô Địch', 'Á Quân', 'Top 4', 'Vận Động Viên'
+    title CHARACTER VARYING NOT NULL, -- 'Giấy Chứng Nhận Tham Gia Giải Đấu', 'Giấy Chứng Nhận Ban Tổ Chức', 'Giấy Khen Vô Địch'
+    achievement_title CHARACTER VARYING, -- 'Vô Địch', 'Á Quân', 'Top 4', 'Vận Động Viên', 'Cộng Tác Viên Tổ Chức', 'Trọng Tài Giải Đấu'
     certificate_url TEXT NOT NULL, -- URL file PDF hoặc ảnh PNG kết xuất
     qr_verify_url TEXT, -- Link tra cứu xác thực công khai
-    metadata JSONB NOT NULL DEFAULT '{}'::jsonb, -- Thông tin snapshot lúc cấp (Họ tên, MSSV, Điểm)
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb, -- Thông tin snapshot lúc cấp (Họ tên, MSSV, Điểm/Vai trò)
     
     is_revoked BOOLEAN NOT NULL DEFAULT false, -- Trạng thái thu hồi nếu gian lận
     issued_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     CONSTRAINT certificates_pkey PRIMARY KEY (id),
-    CONSTRAINT uq_tournament_participant_cert UNIQUE (tournament_id, participant_id),
+    CONSTRAINT uq_tournament_participant_cert UNIQUE (tournament_id, participant_id, certificate_type),
     CONSTRAINT fk_cert_tournament FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE,
     CONSTRAINT fk_cert_participant FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE CASCADE,
-    CONSTRAINT fk_cert_registration FOREIGN KEY (registration_id) REFERENCES public.registrations(id) ON DELETE CASCADE
+    CONSTRAINT fk_cert_registration FOREIGN KEY (registration_id) REFERENCES public.registrations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_cert_organizer FOREIGN KEY (organizer_id) REFERENCES public.tournament_organizers(id) ON DELETE SET NULL,
+    CONSTRAINT chk_certificate_type CHECK (certificate_type IN ('participant', 'organizer')),
+    CONSTRAINT chk_cert_requirements CHECK (
+        (certificate_type = 'participant' AND registration_id IS NOT NULL) OR
+        (certificate_type = 'organizer')
+    )
 );
 
-COMMENT ON TABLE public.certificates IS 'Giấy chứng nhận điện tử tự động xuất cho thí sinh đã hoàn thành check-in';
+COMMENT ON TABLE public.certificates IS 'Giấy chứng nhận điện tử tự động xuất cho VĐV đã check-in hoặc CTV thời vụ/BTC tự xuất sau giải đấu';
+COMMENT ON COLUMN public.certificates.certificate_type IS 'Loại giấy chứng nhận: participant (Vận động viên thi đấu) hoặc organizer (Ban tổ chức / CTV thời vụ)';
 
 -- =============================================================================
--- 15. BẢNG notifications (Thông báo hệ thống cho Sinh viên & Quản trị)
+-- 16. BẢNG notifications (Thông báo hệ thống cho Sinh viên & Quản trị)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.notifications (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
@@ -495,13 +524,13 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 COMMENT ON TABLE public.notifications IS 'Hệ thống thông báo đẩy phục vụ kiến trúc Event-Driven';
 
 -- =============================================================================
--- 16. BẢNG audit_logs (Nhật ký thao tác hệ thống)
+-- 17. BẢNG audit_logs (Nhật ký thao tác hệ thống)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.audit_logs (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     actor_id TEXT NOT NULL, -- User/Participant ID thực hiện hành động
     actor_role CHARACTER VARYING NOT NULL, -- 'admin', 'ctv', 'participant', 'system'
-    action CHARACTER VARYING NOT NULL, -- 'APPROVE_STUDENT', 'CREATE_BRACKET', 'APPROVE_CHECKIN', 'ISSUE_CERTIFICATE'...
+    action CHARACTER VARYING NOT NULL, -- 'APPROVE_STUDENT', 'CREATE_BRACKET', 'APPROVE_CHECKIN', 'ISSUE_CERTIFICATE', 'ADD_SEASONAL_STAFF'...
     target_table CHARACTER VARYING NOT NULL,
     target_id TEXT,
     payload JSONB DEFAULT '{}'::jsonb,
@@ -514,7 +543,7 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
 COMMENT ON TABLE public.audit_logs IS 'Nhật ký kiểm tra phục vụ bảo mật và audit hành vi quản trị';
 
 -- =============================================================================
--- 17. THIẾT LẬP TẤT CẢ TRIGGERS TỰ ĐỘNG CẬP NHẬT updated_at
+-- 18. THIẾT LẬP TẤT CẢ TRIGGERS TỰ ĐỘNG CẬP NHẬT updated_at
 -- =============================================================================
 DROP TRIGGER IF EXISTS trg_users_updated_at ON public.users;
 CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -538,7 +567,7 @@ DROP TRIGGER IF EXISTS trg_matches_updated_at ON public.matches;
 CREATE TRIGGER trg_matches_updated_at BEFORE UPDATE ON public.matches FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- =============================================================================
--- 18. CHỈ MỤC TỐI ƯU HIỆU NĂNG TRUY VẤN (INDEXES)
+-- 19. CHỈ MỤC TỐI ƯU HIỆU NĂNG TRUY VẤN (INDEXES)
 -- =============================================================================
 -- Participants
 CREATE INDEX IF NOT EXISTS idx_participants_status ON public.participants(status);
@@ -550,9 +579,11 @@ CREATE INDEX IF NOT EXISTS idx_tournaments_status ON public.tournaments(status);
 CREATE INDEX IF NOT EXISTS idx_tournaments_code ON public.tournaments(code);
 CREATE INDEX IF NOT EXISTS idx_tournaments_created_by ON public.tournaments(created_by);
 
--- Tournament Organizers
+-- Tournament Organizers (CTV Thường trực & CTV Thời vụ)
 CREATE INDEX IF NOT EXISTS idx_to_tournament_id ON public.tournament_organizers(tournament_id);
 CREATE INDEX IF NOT EXISTS idx_to_user_id ON public.tournament_organizers(user_id);
+CREATE INDEX IF NOT EXISTS idx_to_participant_id ON public.tournament_organizers(participant_id);
+CREATE INDEX IF NOT EXISTS idx_to_organizer_type ON public.tournament_organizers(organizer_type);
 
 -- Registrations & Members
 CREATE INDEX IF NOT EXISTS idx_registrations_tournament ON public.registrations(tournament_id);
@@ -589,10 +620,12 @@ CREATE INDEX IF NOT EXISTS idx_aics_status ON public.ai_checkin_sessions(status)
 CREATE INDEX IF NOT EXISTS idx_aicd_session ON public.ai_checkin_detections(session_id);
 CREATE INDEX IF NOT EXISTS idx_aicd_participant ON public.ai_checkin_detections(matched_participant_id);
 
--- Certificates
+-- Certificates (VĐV & Ban tổ chức)
 CREATE INDEX IF NOT EXISTS idx_certs_tournament ON public.certificates(tournament_id);
 CREATE INDEX IF NOT EXISTS idx_certs_participant ON public.certificates(participant_id);
 CREATE INDEX IF NOT EXISTS idx_certs_code ON public.certificates(certificate_code);
+CREATE INDEX IF NOT EXISTS idx_certs_type ON public.certificates(certificate_type);
+CREATE INDEX IF NOT EXISTS idx_certs_organizer ON public.certificates(organizer_id);
 
 -- Notifications & Audit
 CREATE INDEX IF NOT EXISTS idx_notif_recipient ON public.notifications(recipient_id, is_read);

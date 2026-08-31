@@ -10,19 +10,21 @@
 ## 1. Giới thiệu
 
 ### 1.1 Mục đích tài liệu
-Tài liệu này mô tả chi tiết các yêu cầu chức năng và phi chức năng của hệ thống website quản lý giải đấu thể thao điện tử (esports) cho CLB DUT ESPORTS. Hệ thống phục vụ việc đăng ký thành viên (xác thực sinh viên), tuyển thành viên lập đội, tổ chức giải đấu, đồng tổ chức (CTV), tạo và vận hành nhánh đấu đa thể thức (bracket/matches: Single/Double Elimination, Group Stage, TFT lobbies), quản lý kết quả thi đấu, **hệ thống Check-in ngày thi đấu (QR code + GPS/Minh chứng)**, **mô-đun AI OCR Check-in thông minh cho game Liên Quân Mobile (nhận diện chữ màu xanh lá từ web congdong.lienquan.garena.vn / sảnh phòng lobby)**, **công cụ Xuất danh sách thành viên tham gia (Excel/CSV/PDF)** và **tự động xuất Giấy chứng nhận điện tử (E-Certificate)**.
+Tài liệu này mô tả chi tiết các yêu cầu chức năng và phi chức năng của hệ thống website quản lý giải đấu thể thao điện tử (esports) cho CLB DUT ESPORTS. Hệ thống phục vụ việc đăng ký thành viên (xác thực sinh viên), tuyển thành viên lập đội, tổ chức giải đấu, đồng tổ chức (**phân cấp CTV Thường trực & CTV Thời vụ sinh viên**), tạo và vận hành nhánh đấu đa thể thức (bracket/matches: Single/Double Elimination, Group Stage, TFT lobbies), quản lý kết quả thi đấu, **hệ thống Check-in ngày thi đấu (QR code + GPS/Minh chứng)**, **mô-đun AI OCR Check-in thông minh cho game Liên Quân Mobile (nhận diện chữ màu xanh lá từ web congdong.lienquan.garena.vn / sảnh phòng lobby)**, **công cụ Xuất danh sách thành viên tham gia (Excel/CSV/PDF)** và **hệ thống Tự động xuất Giấy chứng nhận điện tử (E-Certificate) cho cả Vận động viên và Ban tổ chức**.
 
 ### 1.2 Phạm vi hệ thống
 Hệ thống là một nền tảng web toàn diện cho phép:
 - **Sinh viên (Participant)**: Đăng ký tài khoản (xác minh qua ảnh thẻ SV và ảnh selfie cầm thẻ SV), tìm đội/tuyển quân, đăng ký tham gia giải đấu (cá nhân hoặc đội), tra cứu nhánh đấu, lịch thi đấu, Ingame ID của đối thủ trong bảng, **thực hiện Check-in ngày thi đấu (quét QR code kèm định vị GPS hoặc nộp ảnh minh chứng)**, xuất danh sách thành viên đội của mình, và **tải Giấy chứng nhận điện tử tự động khi hoàn thành giải đấu**.
-- **CTV (Cộng tác viên / Đồng tổ chức)**: Tạo giải đấu (chờ duyệt), được Admin phân quyền đồng tổ chức giải, quản lý danh sách đăng ký, tạo/điều hành nhánh đấu, nhập tỉ số, giám sát và duyệt check-in của thí sinh, **sử dụng AI OCR tự động đề xuất check-in Liên Quân Mobile qua ảnh chụp màn hình web congdong.lienquan.garena.vn**, và **xuất danh sách VĐV/bảng điểm danh phục vụ điều phối giải**.
-- **Admin**: Quản trị toàn diện: Người dùng (Users), Sinh viên (Participants), Giải đấu (Tournaments), phân công CTV đồng tổ chức, cấu hình hệ thống, quản lý check-in (xem bản đồ vị trí, duyệt minh chứng, ghi đè check-in thủ công, quản lý công cụ AI OCR Check-in), **xuất báo cáo và danh sách VĐV toàn hệ thống**, quản lý mẫu phôi và tự động phát hành Giấy chứng nhận.
+- **CTV Thời vụ (Seasonal Collaborator / Student Staff)**: Là các sinh viên được CTV Thường trực hoặc Admin gán quyền hỗ trợ tổ chức một giải đấu cụ thể; thực hiện điều phối tại bàn BTC, làm trọng tài ván đấu, giám sát điểm danh và **có thể tự xuất Giấy chứng nhận tham gia Ban tổ chức (Organizer E-Certificate) của giải đấu đó**.
+- **CTV Thường trực (Permanent Collaborator)**: Tài khoản quản trị trong bảng `users` (`role = 'ctv'`), tạo giải đấu (chờ duyệt), được Admin phân quyền quản lý giải, duyệt đơn đăng ký, tạo/điều hành nhánh đấu, nhập tỉ số, giám sát check-in, **sử dụng AI OCR Check-in Liên Quân Mobile**, **xuất danh sách VĐV/bảng điểm danh**, và **thêm sinh viên khác làm CTV thời vụ cho giải đấu mình điều phối**.
+- **Admin**: Quản trị toàn diện: Người dùng (Users), Sinh viên (Participants), Giải đấu (Tournaments), phân công CTV Thường trực & CTV Thời vụ, cấu hình hệ thống, quản lý check-in (xem bản đồ vị trí, duyệt minh chứng, ghi đè check-in thủ công, quản lý công cụ AI OCR Check-in), **xuất báo cáo và danh sách VĐV toàn hệ thống**, quản lý mẫu phôi và phát hành Giấy chứng nhận cho cả VĐV và Ban tổ chức.
 
 ### 1.3 Định nghĩa, từ viết tắt
 | Từ viết tắt | Ý nghĩa |
 |---|---|
 | SRS | Software Requirements Specification |
-| CTV | Cộng tác viên (Co-organizer / Referee) |
+| CTV Thường trực | Permanent Collaborator – Tài khoản quản trị trong bảng `users` (`role = 'ctv'`) có quyền dài hạn trên hệ thống |
+| CTV Thời vụ | Seasonal Collaborator – Sinh viên (từ bảng `participants`) được gán hỗ trợ tổ chức cho riêng một giải đấu cụ thể |
 | BO | Best Of (VD: BO1, BO3, BO5, BO7) |
 | TFT | Teamfight Tactics – Đấu Trường Chân Lý (thể thức 8 người/phòng) |
 | LOL | League of Legends (Liên Minh Huyền Thoại) |
@@ -30,7 +32,8 @@ Hệ thống là một nền tảng web toàn diện cho phép:
 | Bracket | Nhánh đấu / Sơ đồ thi đấu |
 | Ingame ID / IGN | Tên nhân vật hoặc ID tài khoản trong game (Riot ID, Tên kiện tướng, v.v.) |
 | KYC | Know Your Customer – Quy trình xác thực danh tính sinh viên |
-| E-Certificate | Giấy chứng nhận điện tử có mã định danh và QR xác thực |
+| E-Certificate | Giấy chứng nhận điện tử có mã định danh và QR xác thực (cho VĐV hoặc Ban tổ chức/CTV) |
+| Organizer E-Certificate | Giấy chứng nhận điện tử ghi nhận thành tích tham gia Ban tổ chức / CTV điều hành giải đấu |
 | OSM | OpenStreetMap (Giải pháp bản đồ mã nguồn mở miễn phí thay thế Google Maps API) |
 | EDA | Event-Driven Architecture |
 | OCR | Optical Character Recognition – Công nghệ nhận dạng quang học ký tự từ hình ảnh |
@@ -45,11 +48,12 @@ Hệ thống là một nền tảng web toàn diện cho phép:
 
 ### 2.1 Đối tượng sử dụng (Actors)
 
-| Actor | Vai trò trong hệ thống (bảng `users`/`participants`) |
+| Actor | Vai trò trong hệ thống (bảng `users`/`participants`/`tournament_organizers`) |
 |---|---|
-| **Sinh viên (Participant)** | Người chơi/thí sinh thi đấu, lưu tại bảng `participants`. Phân loại `account_type`: `'internal'` (sinh viên DUT) và `'external'` (sinh viên trường khác). Thực hiện check-in, xuất danh sách đội và nhận giấy chứng nhận. |
-| **Admin** | Tài khoản quản trị cấp cao trong bảng `users` (`role = 'admin'`), toàn quyền hệ thống: quản trị check-in, AI OCR, xuất báo cáo toàn diện, cấu hình phôi và cấp phát chứng chỉ. |
-| **CTV (Cộng tác viên)** | Tài khoản quản trị trong bảng `users` (`role = 'ctv'`), tạo đề xuất giải đấu và tham gia đồng tổ chức các giải đấu được phân công qua bảng `tournament_organizers` (bao gồm quản lý check-in, vận hành AI OCR và xuất danh sách VĐV). |
+| **Sinh viên (Participant)** | Người chơi/thí sinh thi đấu, lưu tại bảng `participants`. Phân loại `account_type`: `'internal'` (sinh viên DUT) và `'external'` (sinh viên trường khác). Thực hiện check-in, xuất danh sách đội và nhận giấy chứng nhận VĐV. |
+| **CTV Thời vụ (Seasonal Staff)** | Sinh viên trong bảng `participants` được CTV Thường trực hoặc Admin gán vào ban tổ chức giải đấu cụ thể qua bảng `tournament_organizers` (`organizer_type = 'seasonal'`). Hỗ trợ điều phối giải, điểm danh, trọng tài ván đấu và **tự xuất Giấy chứng nhận Ban tổ chức** sau giải. |
+| **CTV Thường trực (Permanent Staff)** | Tài khoản quản trị trong bảng `users` (`role = 'ctv'`), tạo đề xuất giải đấu, duyệt hồ sơ KYC sinh viên toàn hệ thống, quản lý các giải đấu được phân công qua bảng `tournament_organizers` (bao gồm quản lý check-in, AI OCR, xuất danh sách VĐV, và **thêm CTV thời vụ cho giải**). |
+| **Admin** | Tài khoản quản trị cấp cao trong bảng `users` (`role = 'admin'`), toàn quyền hệ thống: quản trị check-in, AI OCR, xuất báo cáo toàn diện, cấu hình phôi và cấp phát chứng chỉ cho VĐV và Ban tổ chức. |
 
 ---
 
@@ -57,13 +61,16 @@ Hệ thống là một nền tảng web toàn diện cho phép:
 Hệ thống áp dụng kiến trúc **Event-Driven Architecture (EDA)** kết hợp **Asynchronous Processing**:
 - **Xử lý đăng ký sinh viên**: Upload ảnh thẻ SV & selfie $\rightarrow$ validate/nén ảnh $\rightarrow$ đẩy vào hàng đợi duyệt $\rightarrow$ gửi thông báo kết quả duyệt/từ chối.
 - **Duyệt giải đấu & Đăng ký**: Thông báo real-time khi đội trưởng nhận được yêu cầu "xin vào đội" hoặc khi đơn đăng ký giải được duyệt.
+- **Quản lý Ban tổ chức & CTV Thời vụ**: CTV Thường trực hoặc Admin gán sinh viên làm CTV thời vụ cho giải $\rightarrow$ hệ thống cấp quyền điều phối giải và tạo bản ghi chứng nhận BTC sẵn sàng xuất.
 - **Sinh nhánh đấu (Bracket Generation)**: Tự động hóa chia nhánh Single/Double Elimination hoặc thuật toán chia phòng TFT 8 người khi giải đóng đăng ký.
 - **Check-in Ngày thi đấu (Đa phương thức)**:
   1. *QR Scan + GPS Geolocation*: Sinh viên quét QR $\rightarrow$ lấy tọa độ GPS / nộp ảnh minh chứng $\rightarrow$ Admin/CTV đối soát trên bản đồ OpenStreetMap.
   2. *AI OCR Check-in (Liên Quân Mobile)*: Trọng tài/CTV upload ảnh chụp bảng điểm danh trên web `congdong.lienquan.garena.vn` (hoặc sảnh phòng lobby) $\rightarrow$ AI Worker phân tích dải màu chữ xanh lá $\rightarrow$ Nhận diện Ingame ID $\rightarrow$ So khớp mờ (Fuzzy Matching) với danh sách đội $\rightarrow$ Trả về bảng đề xuất trực quan (cho phép chỉnh sửa) $\rightarrow$ Trọng tài xác nhận 1-click $\rightarrow$ Cập nhật check-in và **tự động xóa ảnh tạm** khỏi bộ nhớ.
 - **Xuất dữ liệu & Báo cáo (Data Export Worker)**: Xử lý xuất file Excel/CSV/PDF theo cơ chế stream bất đồng bộ, hỗ trợ lọc đa tiêu chí và áp dụng Data Masking bảo vệ PII.
-- **Tự động cấp E-Certificate**: Khi giải đấu chuyển sang trạng thái `completed`, background worker tự động quét các thí sinh đã check-in hợp lệ $\rightarrow$ sinh file Giấy chứng nhận (PDF/Image) theo mẫu phôi có mã xác thực $\rightarrow$ gửi thông báo tải chứng nhận.
-- **Sự kiện tiêu biểu**: `participant.registered`, `participant.approved`, `registration.submitted`, `team.join_requested`, `team.join_accepted`, `tournament.organizer_assigned`, `tournament.registration_closed`, `bracket.generated`, `match.score_updated`, `checkin.qr_scanned`, `checkin.proof_submitted`, `ai_checkin.image_uploaded`, `ai_checkin.processed`, `ai_checkin.confirmed`, `ai_checkin.image_purged`, `report.export_requested`, `tournament.completed`, `certificate.issued`.
+- **Tự động cấp & Tự xuất E-Certificate**:
+  - *Cho VĐV*: Khi giải chuyển sang `completed`, background worker tự động quét các thí sinh đã check-in hợp lệ $\rightarrow$ render Giấy chứng nhận tham gia/đạt giải $\rightarrow$ gửi thông báo tải.
+  - *Cho CTV Thời vụ / BTC*: Sau khi giải hoàn thành (hoặc sau khi được xác nhận tham gia tổ chức), sinh viên làm CTV thời vụ có thể chủ động **tự xuất / tải Giấy chứng nhận Ban tổ chức** trực tiếp từ hệ thống.
+- **Sự kiện tiêu biểu**: `participant.registered`, `participant.approved`, `registration.submitted`, `team.join_requested`, `team.join_accepted`, `tournament.organizer_assigned`, `tournament.seasonal_staff_added`, `tournament.registration_closed`, `bracket.generated`, `match.score_updated`, `checkin.qr_scanned`, `checkin.proof_submitted`, `ai_checkin.image_uploaded`, `ai_checkin.processed`, `ai_checkin.confirmed`, `ai_checkin.image_purged`, `report.export_requested`, `tournament.completed`, `certificate.issued`, `certificate.organizer_generated`.
 
 ---
 
@@ -83,8 +90,9 @@ Hệ thống áp dụng kiến trúc **Event-Driven Architecture (EDA)** kết h
 | **SV-08** | **Xem nhánh đấu & Lịch thi đấu** | Xem sơ đồ cây nhánh đấu (Bracket view), lịch thi đấu chi tiết từng vòng, kết quả trận đấu, link phòng stream. |
 | **SV-09** | **Tra cứu Ingame ID của đối thủ** | Khi bảng đấu/phòng đấu được công bố, người chơi tự động xem được danh sách `ingame_id` của tất cả các đối thủ trong cùng phòng/cặp đấu để kết bạn và mời vào phòng Custom. |
 | **SV-10** | **Check-in Ngày thi đấu** | Đến ngày thi đấu, thí sinh thực hiện một trong hai hình thức check-in:<br>1. **Quét mã QR của BTC**: Bật quyền truy cập vị trí (GPS Geolocation), hệ thống ghi nhận tọa độ + thiết bị và xác nhận check-in thành công.<br>2. **Nộp minh chứng (Proof Upload)**: Dành cho thí sinh gặp sự cố camera/check-in từ xa; upload ảnh chụp tại phòng máy/địa điểm thi đấu hoặc ảnh màn hình phòng custom $\rightarrow$ chờ Admin/CTV phê duyệt. |
-| **SV-11** | **Xem & Tải Giấy chứng nhận (E-Certificate)** | Sau khi giải đấu kết thúc, nếu thí sinh đã check-in hợp lệ, hệ thống tự động hiển thị Giấy chứng nhận tham gia/đạt giải. Thí sinh có thể xem trực tuyến, tải file PDF/PNG chất lượng cao và chia sẻ liên kết xác thực công khai. |
+| **SV-11** | **Xem & Tải Giấy chứng nhận VĐV (E-Certificate)** | Sau khi giải đấu kết thúc, nếu thí sinh đã check-in hợp lệ, hệ thống tự động hiển thị Giấy chứng nhận tham gia/đạt giải. Thí sinh có thể xem trực tuyến, tải file PDF/PNG chất lượng cao và chia sẻ liên kết xác thực công khai. |
 | **SV-12** | **Xuất danh sách đội cá nhân** | Đội trưởng có quyền xuất file danh sách các thành viên trong đội của mình (PDF/Excel) kèm Ingame ID và vai trò để đối chiếu và nộp cho BTC khi cần thiết. |
+| **SV-13** | **Tự xuất Giấy chứng nhận CTV Thời vụ (Organizer E-Certificate)** | Sinh viên được gán làm CTV thời vụ của giải đấu có thể tự truy cập mục cá nhân hoặc trang giải đấu để **tự kết xuất và tải Giấy chứng nhận tham gia Ban tổ chức giải đấu** (PDF/PNG) ghi nhận chức danh đảm nhiệm, mã xác thực duy nhất và QR tra cứu công khai. |
 
 ---
 
@@ -96,77 +104,38 @@ Hệ thống áp dụng kiến trúc **Event-Driven Architecture (EDA)** kết h
 | **AD-02** | **Duyệt đăng ký tài khoản sinh viên** | Xem hồ sơ và 2 ảnh xác thực thẻ SV. Thực hiện Duyệt (`approved`) hoặc Từ chối (`rejected` kèm lý do cụ thể). |
 | **AD-03** | **Quản lý Giải đấu (Tournaments)** | Toàn quyền tạo mới, chỉnh sửa thông tin, cấu hình số lượng đội (`min_team_size`, `max_team_size`, `max_participants`), thời gian mở/đóng đăng ký, tùy biến `form_schema`. |
 | **AD-04** | **Phê duyệt giải đấu do CTV tạo** | Xem xét và Duyệt (`approved`) hoặc Từ chối (`rejected`) giải đấu do CTV đề xuất. |
-| **AD-05** | **Phân quyền Đồng tổ chức (Co-organizers)** | Gán/thêm một hoặc nhiều CTV vào giải đấu thông qua bảng `tournament_organizers` (vai trò: `lead_organizer`, `co_organizer`, `referee`). |
-| **AD-06** | **Quản lý CTV (Users)** | Tạo mới, cấp tài khoản, phân quyền `role = 'ctv'`, khóa/mở khóa tài khoản CTV. |
+| **AD-05** | **Phân quyền Ban tổ chức (Co-organizers & Staff)** | Gán/thêm CTV Thường trực hoặc Sinh viên (CTV Thời vụ) vào giải đấu qua bảng `tournament_organizers` (vai trò: `lead_organizer`, `co_organizer`, `referee`, `seasonal_staff`, `support_staff` kèm chức danh tùy biến `custom_title`). |
+| **AD-06** | **Quản lý CTV Thường trực (Users)** | Tạo mới, cấp tài khoản, phân quyền `role = 'ctv'`, khóa/mở khóa tài khoản CTV thường trực. |
 | **AD-07** | **Tạo và điều hành Nhánh đấu** | Tạo bracket đa thể thức, chạy thuật toán xếp cặp tự động hoặc xếp thủ công, cập nhật tỉ số, xử lý khiếu nại. |
 | **AD-08** | **Báo cáo & Thống kê** | Thống kê số lượng giải đấu, số lượng VĐV tham gia, tỉ lệ hoàn thành trận đấu, tỉ lệ check-in qua QR/Minh chứng/AI OCR. |
 | **AD-09** | **Quản lý Check-in & Bản đồ Vị trí** | - Xem danh sách thí sinh đã/chưa check-in theo thời gian thực.<br>- Xem thông tin tọa độ GPS, địa chỉ IP, User-Agent/Device info của thí sinh.<br>- **Xem trực quan trên Bản đồ**: Tích hợp OpenStreetMap / Leaflet (miễn phí) hoặc điều hướng xem trên Google Maps (không mất phí API $200/tháng). |
 | **AD-10** | **Duyệt Minh chứng & Xác nhận tham gia thủ công** | - Duyệt (`approved`) hoặc từ chối (`rejected`) các đơn nộp ảnh minh chứng check-in.<br>- **Ghi đè thủ công (Manual Check-in Override)**: Admin có quyền xác nhận tham gia trực tiếp cho bất kỳ thí sinh/đội nào ngay trên hệ thống. |
-| **AD-11** | **Cấu hình & Tự động phát hành Giấy chứng nhận** | - Cấu hình mẫu phôi Giấy chứng nhận (tiêu đề, chữ ký, logo CLB, layout).<br>- Tự động kích hoạt cấp phát E-Certificate cho tất cả thí sinh đã check-in khi giải hoàn thành.<br>- Hỗ trợ cấp phát bổ sung, chỉnh sửa danh hiệu hoặc thu hồi (Revoke) giấy chứng nhận khi phát hiện gian lận. |
+| **AD-11** | **Cấu hình & Phát hành Giấy chứng nhận (VĐV & BTC)** | - Cấu hình mẫu phôi Giấy chứng nhận (tiêu đề, chữ ký, logo CLB, layout) cho cả VĐV thi đấu và Ban tổ chức/CTV thời vụ.<br>- Tự động kích hoạt cấp phát E-Certificate cho tất cả thí sinh đã check-in khi giải hoàn thành.<br>- Cho phép sinh viên làm CTV thời vụ tự kết xuất Giấy chứng nhận Ban tổ chức.<br>- Hỗ trợ cấp phát bổ sung, chỉnh sửa danh hiệu hoặc thu hồi (Revoke) giấy chứng nhận khi phát hiện gian lận. |
 | **AD-12** | **Xuất danh sách VĐV & Báo cáo giải đấu toàn diện** | - Xuất file Excel (`.xlsx`), CSV hoặc PDF in danh sách VĐV.<br>- **Đa dạng bộ lọc**: Toàn giải, theo từng Bảng đấu / Nhánh đấu / Phòng đấu, theo Trạng thái Check-in (Đã check-in QR, Minh chứng, AI OCR, Chưa check-in), phân loại sinh viên (`internal`/`external`).<br>- Đầy đủ thông tin: Họ tên, MSSV, Trường/Khoa, SĐT, Email, Tên đội, Ingame ID, Thời gian điểm danh, Tọa độ GPS. |
-| **AD-13** | **AI OCR Check-in Thông minh Liên Quân Mobile (Nhận diện chữ xanh)** | - Tiếp nhận ảnh chụp màn hình hiển thị danh sách check-in từ trang web `congdong.lienquan.garena.vn` (hoặc ảnh chụp sảnh phòng lobby in-game).<br>- **Model AI Vision & OCR**: Phân đoạn dải màu xanh lá cây (HSV Green Filter) để nhận diện các dòng trạng thái / tên người chơi có màu xanh lá (đại diện cho người chơi đã check-in / sẵn sàng).<br>- Tự động bóc tách Ingame ID / Tên và chạy thuật toán so khớp mờ (**Fuzzy String Matching** $\ge 80\%$) với danh sách thí sinh 2 đội trong CSDL.<br>- Hiển thị **bảng đề xuất đối chiếu thông minh** trên giao diện: cho phép Admin/Trọng tài **chỉnh sửa thủ công** (thêm/bớt/chọn lại người tương ứng) trước khi lưu.<br>- Cung cấp nút **"Xác nhận toàn bộ (1-Click Approve)"**.<br>- **Cơ chế Tự động Xóa ảnh tạm (Auto-delete Ephemeral Image)**: Ngay sau khi bấm xác nhận check-in, hệ thống tự động xóa vĩnh viễn file ảnh đã upload khỏi server/storage để tối ưu dung lượng và bảo mật quyền riêng tư. |
-
----
-
-### 3.3 Chức năng dành cho CTV (Cộng tác viên / Đồng tổ chức)
-
-| Mã | Chức năng | Mô tả chi tiết |
-|---|---|---|
-| **CTV-01** | **Duyệt đăng ký sinh viên** | Xem hồ sơ chờ duyệt và phê duyệt thẻ sinh viên (dùng chung hàng đợi kiểm duyệt với Admin). |
-| **CTV-02** | **Đề xuất tạo giải đấu mới** | Tạo giải đấu với `created_by = ctv.id`, trạng thái `pending`, chờ Admin phê duyệt trước khi công bố. |
-| **CTV-03** | **Quản lý giải đấu được phân công** | Quản lý các giải đấu do mình tạo hoặc được Admin gán quyền đồng tổ chức trong `tournament_organizers`. |
-| **CTV-04** | **Duyệt đơn đăng ký giải đấu** | Duyệt (`approved`) hoặc từ chối (`rejected`) đơn đăng ký cá nhân/đội tham gia giải đấu mình phụ trách. |
-| **CTV-05** | **Vận hành Nhánh đấu & Trận đấu** | Sinh nhánh đấu khi đóng đăng ký, phân phòng TFT theo thuật toán, cập nhật lịch thi đấu, nhập tỉ số ván đấu và ảnh chụp bằng chứng kết quả. |
-| **CTV-06** | **Xuất danh sách VĐV & Bảng điểm danh giải phụ trách** | Xuất bảng danh sách VĐV hợp lệ kèm Ingame ID, số điện thoại, tên đội và danh sách phân phòng ra file Excel/PDF phục vụ công tác điều phối tại bàn BTC. |
-| **CTV-07** | **Điều hành Check-in Ngày thi đấu** | - Hiển thị/Trình chiếu mã QR Check-in của giải đấu tại bàn BTC hoặc phòng thi đấu.<br>- Giám sát danh sách thí sinh điểm danh, kiểm tra ảnh minh chứng và duyệt check-in cho các thí sinh giải mình phụ trách. |
-| **CTV-08** | **Xuất báo cáo kết quả thi đấu & Check-in** | Xuất bảng tổng kết danh sách các bạn đã check-in thành công, danh sách vắng mặt, và bảng điểm từng vòng đấu của giải đấu được phân công. |
-| **CTV-09** | **Sử dụng AI OCR Check-in Liên Quân Mobile** | - Upload ảnh chụp danh sách điểm danh trên `congdong.lienquan.garena.vn` hoặc phòng lobby cho trận đấu mình điều phối.<br>- Xem bảng đề xuất nhận diện chữ xanh của AI, chỉnh sửa sai sót nếu có (đổi tên, chọn lại VĐV) và bấm nút xác nhận 1-click để hệ thống tự động hoàn tất check-in và xóa ảnh tạm. |
-
----
-
-## 4. Luồng nghiệp vụ chính (Business Flow)
-
-### 4.1 Luồng đăng ký & duyệt tài khoản sinh viên (KYC thẻ SV)
+| **AD-13** | **AI OCR Check-in Thông minh Liên Quân Mobile (Nhận diện chữ xanh)** | - Tiếp nhận ảnh chụp màn hình hiển thị danh sách check-in từ trang web `congdong.lienquan.garena.vn` (hoặc ảnh chụp sảnh phòng lobby in-game).<br>- **Model AI Vision & OCR**: Phân đoạn dải màu xanh lá cây (HSV Green Filter) để nhận diện các dòng trạng thái / tên người chơi có màu xanh lá (đại diện cho người chơi đã check-in / sẵn sàng).<br>- Tự động bóc tách Ingame ID / Tên và chạy thuật toán so khớp mờ (**Fuzzy String Matching** $\ge 80\%$) với danh sách thí sinh 2 đội trong CSDL.<br>- Hiển thị **bảng đề xuất đối chiếu thông minh** trên giao diện: cho phép Admin/Trọng tài **chỉnh sửa thủ công** (thêm/bớt/chọn lại người tương ứng) trước khi lưu.<br>- Cung cấp nút **"Xác nhận toàn bộ (1-Click Approve)"**.<br>- **Cơ chế Tự động Xóa ảnh tạm (Auto-delete Ephemeral Image)**: Ngay sau khi bấm xác nhận check-in, hệ thống t�### 4.2 Luồng phân quyền Ban Tổ Chức & Thêm CTV Thời vụ
 ```
-Sinh viên điền thông tin + Upload 2 ảnh:
-(1) Mặt trước thẻ SV + (2) Ảnh mặt và tay cầm thẻ SV
+Admin tạo giải HOẶC Admin duyệt giải do CTV Thường trực đề xuất
                      │
                      ▼
-             status = 'pending'
+  Admin hoặc CTV Thường trực phụ trách vào mục "Ban Tổ Chức Giải"
+                     │
+        ┌────────────┴────────────┐
+        ▼                         ▼
+ [GÁN CTV THƯỜNG TRỰC]     [GÁN CTV THỜI VỤ (SINH VIÊN)]
+ Chọn từ danh sách users   Tìm kiếm SV qua MSSV/Email (đã duyệt KYC)
+ (Admin thực hiện)         (Admin hoặc CTV Thường trực thực hiện)
+        │                         │
+        └────────────┬────────────┘
+                     ▼
+ Lưu vào bảng `tournament_organizers`:
+ - `organizer_type`: 'permanent' (thường trực) / 'seasonal' (thời vụ)
+ - `role`: 'lead_organizer', 'co_organizer', 'referee', 'seasonal_staff'
+ - `custom_title`: VD "CTV Điểm danh", "Trọng tài bàn", "Ban Kỹ thuật"
                      │
                      ▼
-          Admin/CTV kiểm tra hồ sơ
-                     │
-          ┌──────────┴──────────┐
-          ▼                     ▼
-        Duyệt                 Từ chối
- (status = 'approved',  (status = 'rejected',
-  approved_by,           rejection_reason,
-  approved_at)           rejected_at)
-          │                     │
-          ▼                     ▼
- Sinh viên đăng nhập     Sinh viên xem lý do từ chối,
- & tham gia giải đấu     sửa ảnh/thông tin gửi duyệt lại (status -> pending)
-```
-
----
-
-### 4.2 Luồng phân quyền CTV Đồng tổ chức giải đấu
-```
-Admin tạo giải HOẶC Admin duyệt giải do CTV tạo
-                     │
-                     ▼
-  Admin vào mục "Quản lý Ban Tổ Chức" của giải
-                     │
-                     ▼
-    Chọn các CTV từ danh sách tài khoản
-                     │
-                     ▼
- Thêm vào bảng `tournament_organizers` (role: co_organizer / referee)
-                     │
-                     ▼
-Các CTV được gán có đầy đủ quyền: duyệt đơn đăng ký, tạo nhánh đấu, nhập tỉ số,
-sử dụng AI OCR Check-in, xuất danh sách VĐV giải đấu đó
+ - CTV Thường trực: Toàn quyền quản trị giải phụ trách & thêm CTV thời vụ.
+ - CTV Thời vụ (Sinh viên): Tham gia điều hành tại bàn BTC/phòng đấu,
+   và ĐƯỢC TỰ XUẤT GIẤY CHỨNG NHẬN BAN TỔ CHỨC sau giải đấu.
 ```
 
 ---
@@ -185,6 +154,97 @@ sử dụng AI OCR Check-in, xuất danh sách VĐV giải đấu đó
             │                         kèm ghi chú vị trí cần tuyển
             │                                     │
             │                         Các sinh viên khác thấy đội 4/7
+            │                         bấm "Xin vào đội" (kèm Ingame ID)
+            │                                     │
+            │                         Đội trưởng Duyệt (Accept) / Từ chối
+            │                         -> Hệ thống tự thêm vào danh sách đội
+            │                                     │
+            └──────────────────┬──────────────────┘
+                               ▼
+        Gửi đơn đăng ký: status = 'pending'
+                               ▼
+        Admin/CTV duyệt: status = 'approved'
+```
+
+---
+
+### 4.4 Luồng Nhánh đấu & Thuật toán chia bảng TFT
+
+#### a) Thuật toán chia phòng TFT khi số thí sinh $N$ không chia hết cho 8
+- **Mục tiêu**: Tối đa hóa số bảng 8 người, giảm thiểu tối đa số bảng bị thiếu người; bảng thiếu người sẽ có 7 người (không để xuất hiện bảng $\le 6$ người trừ khi $N < 7$).
+- **Công thức xác định số bảng**:
+  Gọi $N$ là tổng số thí sinh đã được duyệt ($N \ge 7$), $a$ là số phòng 8 người, $b$ là số phòng 7 người.
+  - Đặt $k = \lfloor N / 8 \rfloor$, $r = N \bmod 8$.
+  - Nếu $r = 0 \implies a = k, \; b = 0$.
+  - Nếu $r > 0 \implies b = 8 - r, \; a = k - (7 - r)$.
+
+#### b) Thể thức cho Game đồng đội (Liên Quân, LOL, Valorant)
+- Hỗ trợ: Single Elimination, Double Elimination, Group Stage + Playoff (BO1 / BO3 / BO5 / BO7).
+
+---
+
+### 4.5 Luồng Check-in Ngày thi đấu Tổng thể (QR Scan, Minh chứng & AI OCR)
+
+```
+                       Đến ngày thi đấu giải
+         (Hệ thống kích hoạt cổng check-in & sinh mã QR BTC)
+                                 │
+     ┌───────────────────────────┼───────────────────────────┐
+     ▼                           ▼                           ▼
+[HÌNH THỨC 1: QUÉT QR]   [HÌNH THỨC 2: MINH CHỨNG]   [HÌNH THỨC 3: AI OCR (LQ)]
+Thí sinh quét QR BTC     Thí sinh upload ảnh chụp    Trọng tài upload ảnh chụp từ
+kèm cấp quyền vị trí GPS  tại sàn đấu/phòng máy      congdong.lienquan.garena.vn
+     │                           │                   hoặc phòng lobby in-game
+     │                           ▼                           │
+Lưu GPS + Device Info    Tạo bản ghi:                        ▼
+-> Tự động Approved      status = 'pending_review'   AI nhận diện chữ xanh lá
+     │                           │                   + So khớp Ingame ID
+     │                           ▼                           │
+     │                   Admin/CTV duyệt ảnh         Hiện bảng đề xuất đối soát
+     │                   -> Approved / Rejected      (Trọng tài sửa & 1-click Approve)
+     │                           │                           │
+     │                           │                   Tự động Xóa Ảnh Tạm
+     │                           │                   -> status = 'approved'
+     └───────────────────────────┼───────────────────────────┘
+                                 │
+               (ĐẶC QUYỀN ADMIN / MANUAL OVERRIDE)
+     Admin có thể bấm "Xác nhận tham gia" trực tiếp cho bất kỳ ai
+                                 │
+                                 ▼
+         Admin/CTV xem bản đồ vị trí điểm danh của các thí sinh
+   (Sử dụng Leaflet/OpenStreetMap MIỄN PHÍ hoặc mở link Google Maps)
+```
+
+---
+
+### 4.6 Luồng Xuất & Tra cứu Giấy Chứng Nhận Điện Tử (VĐV & Ban Tổ Chức)
+
+```
+                   Giải đấu kết thúc (status = 'completed')
+                                 │
+     ┌───────────────────────────┴───────────────────────────┐
+     ▼                                                       ▼
+[ĐỐI TƯỢNG 1: VẬN ĐỘNG VIÊN]                   [ĐỐI TƯỢNG 2: CTV THỜI VỤ / BAN TỔ CHỨC]
+Async Worker quét danh sách VĐV               Sinh viên làm CTV thời vụ (hoặc BTC)
+     │                                                       │
+Thí sinh đã check-in (status = 'approved')?   Có tên trong `tournament_organizers`
+     │                                                       │
+     ▼                                                       ▼
+Tự động kết xuất Giấy chứng nhận VĐV          Sinh viên bấm "Tự xuất Giấy chứng nhận BTC"
+(Tham gia / Vô địch / Á quân / Top 4)         (Ghi rõ chức danh đảm nhiệm tại giải)
+     │                                                       │
+     └───────────────────────────┬───────────────────────────┘
+                                 ▼
+                     Hệ thống sinh E-Certificate:
+     - Gán mã duy nhất `certificate_code` & QR Code xác minh công khai
+     - Render file PDF / PNG chất lượng cao
+     - Lưu vào bảng `certificates`
+                                 │
+     ┌───────────────────────────┴───────────────────────────┐
+     ▼                                                       ▼
+Sinh viên / CTV tải chứng chỉ trong           Bên thứ 3 quét QR trên chứng chỉ
+hồ sơ cá nhân hoặc trang giải đấu             để đối soát tính xác thực công khai
+``` thấy đội 4/7
             │                         bấm "Xin vào đội" (kèm Ingame ID)
             │                                     │
             │                         Đội trưởng Duyệt (Accept) / Từ chối

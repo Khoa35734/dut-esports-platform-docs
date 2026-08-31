@@ -26,20 +26,32 @@ ALTER TABLE public.registrations ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP 
 ALTER TABLE public.registration_members ADD COLUMN IF NOT EXISTS ingame_id CHARACTER VARYING;
 ALTER TABLE public.registration_members ADD COLUMN IF NOT EXISTS role_in_team CHARACTER VARYING;
 
--- 4. TẠO BẢNG tournament_organizers (Đồng tổ chức giải đấu)
+-- 4. TẠO BẢNG tournament_organizers (Ban tổ chức: CTV Thường trực & CTV Thời vụ sinh viên)
 CREATE TABLE IF NOT EXISTS public.tournament_organizers (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     tournament_id UUID NOT NULL,
-    user_id UUID NOT NULL,
-    role CHARACTER VARYING NOT NULL DEFAULT 'co_organizer',
+    organizer_type CHARACTER VARYING NOT NULL DEFAULT 'permanent', -- 'permanent', 'seasonal'
+    user_id UUID,
+    participant_id TEXT,
+    role CHARACTER VARYING NOT NULL DEFAULT 'co_organizer', -- 'lead_organizer', 'co_organizer', 'referee', 'seasonal_staff', 'support_staff'
+    custom_title CHARACTER VARYING, -- VD: 'CTV Điều phối & Điểm danh', 'Trọng tài bàn'
     assigned_by UUID,
     assigned_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT tournament_organizers_pkey PRIMARY KEY (id),
-    CONSTRAINT uq_tournament_user UNIQUE (tournament_id, user_id),
     CONSTRAINT fk_to_tournament FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE,
     CONSTRAINT fk_to_user FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_to_assigned_by FOREIGN KEY (assigned_by) REFERENCES public.users(id) ON DELETE SET NULL
+    CONSTRAINT fk_to_participant FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE CASCADE,
+    CONSTRAINT fk_to_assigned_by FOREIGN KEY (assigned_by) REFERENCES public.users(id) ON DELETE SET NULL,
+    CONSTRAINT chk_organizer_type CHECK (organizer_type IN ('permanent', 'seasonal')),
+    CONSTRAINT chk_organizer_target CHECK (
+        (organizer_type = 'permanent' AND user_id IS NOT NULL AND participant_id IS NULL) OR
+        (organizer_type = 'seasonal' AND participant_id IS NOT NULL AND user_id IS NULL)
+    ),
+    CONSTRAINT chk_organizer_role CHECK (role IN ('lead_organizer', 'co_organizer', 'referee', 'seasonal_staff', 'support_staff'))
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_to_user ON public.tournament_organizers(tournament_id, user_id) WHERE user_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_to_participant ON public.tournament_organizers(tournament_id, participant_id) WHERE participant_id IS NOT NULL;
 
 -- 5. TẠO BẢNG team_join_requests (Xin vào đội)
 CREATE TABLE IF NOT EXISTS public.team_join_requests (
@@ -175,12 +187,14 @@ CREATE TABLE IF NOT EXISTS public.check_ins (
     CONSTRAINT fk_checkin_participant FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE CASCADE
 );
 
--- 9. TẠO BẢNG certificates (Giấy chứng nhận Điện tử E-Certificate Tự Động Cấp)
+-- 9. TẠO BẢNG certificates (Giấy chứng nhận Điện tử E-Certificate cho VĐV & Ban tổ chức/CTV)
 CREATE TABLE IF NOT EXISTS public.certificates (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     tournament_id UUID NOT NULL,
+    certificate_type CHARACTER VARYING NOT NULL DEFAULT 'participant', -- 'participant', 'organizer'
     participant_id TEXT NOT NULL,
-    registration_id UUID NOT NULL,
+    registration_id UUID,
+    organizer_id UUID,
     certificate_code CHARACTER VARYING NOT NULL UNIQUE,
     title CHARACTER VARYING NOT NULL,
     achievement_title CHARACTER VARYING,
@@ -190,10 +204,16 @@ CREATE TABLE IF NOT EXISTS public.certificates (
     is_revoked BOOLEAN NOT NULL DEFAULT false,
     issued_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT certificates_pkey PRIMARY KEY (id),
-    CONSTRAINT uq_tournament_participant_cert UNIQUE (tournament_id, participant_id),
+    CONSTRAINT uq_tournament_participant_cert UNIQUE (tournament_id, participant_id, certificate_type),
     CONSTRAINT fk_cert_tournament FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE,
     CONSTRAINT fk_cert_participant FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE CASCADE,
-    CONSTRAINT fk_cert_registration FOREIGN KEY (registration_id) REFERENCES public.registrations(id) ON DELETE CASCADE
+    CONSTRAINT fk_cert_registration FOREIGN KEY (registration_id) REFERENCES public.registrations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_cert_organizer FOREIGN KEY (organizer_id) REFERENCES public.tournament_organizers(id) ON DELETE SET NULL,
+    CONSTRAINT chk_certificate_type CHECK (certificate_type IN ('participant', 'organizer')),
+    CONSTRAINT chk_cert_requirements CHECK (
+        (certificate_type = 'participant' AND registration_id IS NOT NULL) OR
+        (certificate_type = 'organizer')
+    )
 );
 
 -- 10. TẠO BẢNG AI CHECK-IN (Liên Quân Mobile - Nhận diện chữ xanh)
