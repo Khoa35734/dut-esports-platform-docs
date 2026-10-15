@@ -136,27 +136,9 @@ docs/testing/
 
 ---
 
-## 6. HƯỚNG DẪN THỰC THI KIỂM THỬ (QUICKSTART & EXECUTION)
 
-Yêu cầu môi trường: **Node.js v24.x trở lên** (hỗ trợ native `--experimental-strip-types`). Không cần cài thêm dependencies nặng nề.
 
-```bash
-# 1. Chạy toàn bộ 56 ca kiểm thử Unit & API:
-npm test
-
-# 2. Chạy riêng tầng Kiểm thử Đơn vị (Unit Tests):
-npm run test:unit
-
-# 3. Chạy riêng tầng Kiểm thử Giao diện Lập trình (API Tests):
-npm run test:api
-
-# 4. Chạy kịch bản Kiểm thử Hiệu năng & Tải cao điểm:
-npm run test:perf
-```
-
----
-
-## 7. CÁC NGUYÊN TẮC KỸ THUẬT BẤT BIẾN (CORE INVARIANTS)
+## 6. CÁC NGUYÊN TẮC KỸ THUẬT BẤT BIẾN (CORE INVARIANTS)
 
 1. **Tuân thủ Tuyệt đối Không CCCD (Zero CCCD Invariant):** 100% cơ sở dữ liệu và giao diện không tồn tại trường nhập số CCCD/CMND hoặc ảnh CCCD. Xác thực danh tính sinh viên độc quyền dựa trên thẻ sinh viên và mã số sinh viên.
 2. **Khóa Chính UUID (100% UUID PKs):** Toàn bộ 18 bảng CSDL sử dụng `uuid` ngẫu nhiên (`gen_random_uuid()`) làm khóa chính, ngăn chặn tấn công vét cạn ID Enumeration.
@@ -165,7 +147,7 @@ npm run test:perf
 
 ---
 
-## 8. THÔNG TIN BẢN QUYỀN & TỔ CHỨC PHÁT TRIỂN
+## 7. THÔNG TIN BẢN QUYỀN & TỔ CHỨC PHÁT TRIỂN
 
 - **Đơn vị chủ quản:** Ban Chủ nhiệm Câu lạc bộ Thể thao Điện tử — Trường Đại học Bách khoa, Đại học Đà Nẵng (DUT Esports Club).
 - **Địa chỉ:** Số 54 Nguyễn Lương Bằng, Phường Hòa Khánh Bắc, Quận Liên Chiểu, Thành phố Đà Nẵng.
