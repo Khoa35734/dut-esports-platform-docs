@@ -1,7 +1,8 @@
 -- =============================================================================
 -- DUT ESPORTS TOURNAMENT PLATFORM - DATABASE SCHEMA
 -- Hệ quản trị cơ sở dữ liệu: PostgreSQL (13+) / Supabase
--- Phiên bản: 1.1 (Cập nhật chuẩn hóa KYC Thẻ SV, Nhánh đấu, Tuyển quân, Phân quyền CTV)
+-- Phiên bản: 2.0 (Reconciled with SRS 6.4 DDL & Final Stakeholder Decisions NSC-FOUND-001 to 005)
+-- Quy chuẩn Invariants: Zero CCCD, UUID Primary Keys, Unified Users Identity
 -- =============================================================================
 
 -- Kích hoạt tiện ích tạo UUID
@@ -19,128 +20,132 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- =============================================================================
--- 1. BẢNG users (Tài khoản Quản trị & CTV)
+-- 1. BẢNG users (Tài khoản Toàn hệ thống — Định danh hợp nhất)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.users (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
-    username TEXT NOT NULL UNIQUE,
-    password_hash CHARACTER VARYING NOT NULL,
-    full_name CHARACTER VARYING NOT NULL,
-    email TEXT UNIQUE,
-    phone_number CHARACTER VARYING,
-    role CHARACTER VARYING NOT NULL DEFAULT 'ctv', -- 'admin', 'ctv'
+    username VARCHAR(50) UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(254) UNIQUE,
+    phone_number VARCHAR(20),
+    email_verified_at TIMESTAMP WITH TIME ZONE,
+    last_login_at TIMESTAMP WITH TIME ZONE,
+    role VARCHAR(20) NOT NULL DEFAULT 'participant', -- 'participant', 'admin', 'ctv', 'seasonal_staff'
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT users_pkey PRIMARY KEY (id),
-    CONSTRAINT chk_user_role CHECK (role IN ('admin', 'ctv'))
+    CONSTRAINT chk_user_role CHECK (role IN ('participant', 'admin', 'ctv', 'seasonal_staff'))
 );
 
-COMMENT ON TABLE public.users IS 'Tài khoản quản trị cấp cao (Admin) và Cộng tác viên (CTV)';
-COMMENT ON COLUMN public.users.role IS 'Vai trò: admin (toàn quyền) hoặc ctv (quản lý giải phân công)';
+COMMENT ON TABLE public.users IS 'Tài khoản người dùng toàn hệ thống (Admin, CTV thường trực, CTV thời vụ, Sinh viên)';
+COMMENT ON COLUMN public.users.role IS 'Vai trò: admin, ctv (thường trực), seasonal_staff (thời vụ), participant (vận động viên)';
 
 -- =============================================================================
--- 2. BẢNG participants (Tài khoản Sinh viên / Người chơi - ĐÃ LOẠI BỎ CCCD)
+-- 2. BẢNG participants (Hồ sơ Sinh viên / KYC — Liên kết 1:1 với users.id, ZERO CCCD)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.participants (
-    id TEXT NOT NULL, -- Mã SV hoặc UUID dạng text
-    username TEXT,
-    password_hash TEXT NOT NULL,
-    full_name TEXT NOT NULL,
-    student_id TEXT UNIQUE, -- Mã số sinh viên
-    email TEXT UNIQUE,
-    phone_number CHARACTER VARYING,
-    university_name CHARACTER VARYING,
+    id UUID NOT NULL DEFAULT uuid_generate_v4(),
+    user_id UUID UNIQUE NOT NULL, -- Liên kết 1:1 với users (NSC-FOUND-001)
+    student_id VARCHAR(50) NOT NULL, -- Mã số sinh viên
+    full_name VARCHAR(100) NOT NULL,
+    university_name VARCHAR(150) NOT NULL,
+    account_type VARCHAR(20) NOT NULL DEFAULT 'external', -- 'internal' (DUT), 'external'
+    phone VARCHAR(20),
+    email VARCHAR(100),
+    
+    -- Hồ sơ xác thực KYC Sinh viên (CHỈ DÙNG 2 ẢNH THẺ SV - TUYỆT ĐỐI KHÔNG CCCD)
+    kyc_status VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
+    student_card_front_url VARCHAR(500), -- Ảnh mặt trước thẻ sinh viên
+    student_card_portrait_url VARCHAR(500), -- Ảnh chân dung cầm thẻ sinh viên
+    kyc_reviewed_by UUID, -- ID người duyệt (users.id)
+    kyc_rejected_reason TEXT,
+    
+    -- Trường kỹ thuật bổ trợ (TECHNICAL_SUPPORT)
     faculty_name TEXT,
     class_name TEXT,
-    account_type TEXT NOT NULL DEFAULT 'external', -- 'internal' (DUT), 'external'
-    
-    -- Hồ sơ xác thực KYC Sinh viên (Chỉ dùng 2 ảnh thẻ SV, không dùng CCCD)
-    student_card_url TEXT, -- Ảnh mặt trước thẻ sinh viên
-    selfie_with_student_card_url TEXT, -- Ảnh chân dung và tay cầm thẻ sinh viên
-    
-    -- Trạng thái phê duyệt
-    status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
-    approved_by TEXT, -- ID tài khoản duyệt
-    approved_at TIMESTAMP WITH TIME ZONE,
-    rejection_reason TEXT,
-    rejected_at TIMESTAMP WITH TIME ZONE,
     
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT participants_pkey PRIMARY KEY (id),
-    CONSTRAINT chk_participant_status CHECK (status IN ('pending', 'approved', 'rejected')),
-    CONSTRAINT chk_account_type CHECK (account_type IN ('internal', 'external'))
+    CONSTRAINT fk_participants_user FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_participants_reviewer FOREIGN KEY (kyc_reviewed_by) REFERENCES public.users(id) ON DELETE SET NULL,
+    CONSTRAINT chk_participant_kyc_status CHECK (kyc_status IN ('pending', 'approved', 'rejected')),
+    CONSTRAINT chk_participant_account_type CHECK (account_type IN ('internal', 'external'))
 );
 
-COMMENT ON TABLE public.participants IS 'Tài khoản sinh viên và người tham gia thi đấu (KYC qua 2 ảnh thẻ SV)';
-COMMENT ON COLUMN public.participants.student_card_url IS 'Ảnh chụp mặt trước thẻ sinh viên';
-COMMENT ON COLUMN public.participants.selfie_with_student_card_url IS 'Ảnh chụp khuôn mặt và tay cầm thẻ sinh viên';
+CREATE UNIQUE INDEX IF NOT EXISTS uq_participant_student ON public.participants(student_id, university_name);
+
+COMMENT ON TABLE public.participants IS 'Hồ sơ KYC sinh viên tham gia thi đấu (Liên kết 1:1 với users, Zero CCCD)';
+COMMENT ON COLUMN public.participants.student_card_front_url IS 'Ảnh chụp mặt trước thẻ sinh viên';
+COMMENT ON COLUMN public.participants.student_card_portrait_url IS 'Ảnh chụp chân dung cầm thẻ sinh viên';
 
 -- =============================================================================
 -- 3. BẢNG tournaments (Giải đấu)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.tournaments (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
-    code CHARACTER VARYING NOT NULL UNIQUE, -- Mã định danh giải (VD: DUT-TFT-2026)
-    name CHARACTER VARYING NOT NULL,
-    game_name CHARACTER VARYING NOT NULL, -- 'TFT', 'Liên Quân Mobile', 'LMHT', 'Valorant'...
+    code VARCHAR(50) UNIQUE, -- Mã định danh giải (VD: DUT-TFT-2026)
+    title VARCHAR(200) NOT NULL,
+    game_category VARCHAR(50) NOT NULL, -- 'TFT', 'Liên Quân Mobile', 'LMHT', 'Valorant'...
+    status VARCHAR(30) NOT NULL DEFAULT 'draft', -- 'draft', 'open_registration', 'closed_registration', 'ongoing', 'completed', 'cancelled'
+    
+    min_participants INT,
+    max_participants INT,
+    min_team_size INT NOT NULL DEFAULT 1,
+    max_team_size INT NOT NULL DEFAULT 1,
+    
+    registration_opens_at TIMESTAMP WITH TIME ZONE,
+    registration_closes_at TIMESTAMP WITH TIME ZONE,
+    checkin_opens_at TIMESTAMP WITH TIME ZONE,
+    checkin_closes_at TIMESTAMP WITH TIME ZONE,
+    event_starts_at TIMESTAMP WITH TIME ZONE,
+    event_ends_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Cấu hình Check-in Geofencing & QR Code
+    checkin_lat DECIMAL(10,8),
+    checkin_lng DECIMAL(11,8),
+    geofence_radius_meters INT DEFAULT 100,
+    checkin_qr_secret TEXT,
+    
+    -- Form tùy biến & Phôi chứng nhận
+    form_schema JSONB NOT NULL DEFAULT '{}'::jsonb,
+    certificate_template_url VARCHAR(500),
+    
+    -- Trường giao diện bổ trợ (TECHNICAL_SUPPORT)
+    banner_url TEXT,
     game_logo_url TEXT,
-    banner_url TEXT NOT NULL,
-    participation_type CHARACTER VARYING NOT NULL, -- 'individual', 'team'
-    max_participants INTEGER NOT NULL, -- Số lượng người chơi hoặc đội tối đa
-    min_team_size INTEGER DEFAULT 1, -- Số thành viên tối thiểu/đội (VD: 5 cho LQ)
-    max_team_size INTEGER DEFAULT 1, -- Số thành viên tối đa/đội (VD: 7 cho LQ)
-    
-    registration_open_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    registration_close_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    start_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    end_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    
-    -- Cấu hình Check-in Ngày thi đấu & Giấy chứng nhận
-    checkin_open_at TIMESTAMP WITH TIME ZONE,
-    checkin_close_at TIMESTAMP WITH TIME ZONE,
-    checkin_qr_secret TEXT, -- Khóa sinh mã QR Check-in động cho BTC
-    certificate_template_url TEXT, -- Mẫu phôi giấy chứng nhận điện tử (SVG/HTML/PNG)
-    
+    location TEXT,
     description TEXT,
     use_external_link BOOLEAN NOT NULL DEFAULT false,
     external_registration_url TEXT,
-    form_schema JSONB NOT NULL DEFAULT '[]'::jsonb, -- Định nghĩa các trường động tùy biến
     
-    created_by UUID, -- CTV hoặc Admin tạo giải
-    approved_by UUID, -- Admin duyệt giải
-    status CHARACTER VARYING NOT NULL DEFAULT 'pending', 
-    -- 'draft', 'pending', 'approved', 'rejected', 'registration_opened', 'registration_closed', 'ongoing', 'completed', 'cancelled'
-    
+    created_by UUID,
+    approved_by UUID,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    approved_at TIMESTAMP WITH TIME ZONE,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     CONSTRAINT tournaments_pkey PRIMARY KEY (id),
     CONSTRAINT tournaments_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL,
     CONSTRAINT tournaments_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES public.users(id) ON DELETE SET NULL,
-    CONSTRAINT chk_participation_type CHECK (participation_type IN ('individual', 'team'))
+    CONSTRAINT chk_tournament_status CHECK (status IN ('draft', 'open_registration', 'closed_registration', 'ongoing', 'completed', 'cancelled'))
 );
 
-COMMENT ON TABLE public.tournaments IS 'Bảng thông tin các giải đấu esports';
+COMMENT ON TABLE public.tournaments IS 'Bảng thông tin các giải đấu esports và cấu hình geofence';
 
 -- =============================================================================
--- 4. BẢNG tournament_organizers (Phân quyền Ban tổ chức & CTV Thường trực / CTV Thời vụ)
+-- 4. BẢNG tournament_organizers (Phân quyền Ban tổ chức & CTV)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.tournament_organizers (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     tournament_id UUID NOT NULL,
-    
-    -- Phân loại: CTV thường trực (users) hoặc CTV thời vụ (sinh viên từ participants)
-    organizer_type CHARACTER VARYING NOT NULL DEFAULT 'permanent', -- 'permanent' (CTV thường trực), 'seasonal' (CTV thời vụ)
     user_id UUID, -- Liên kết users (Admin/CTV thường trực)
-    participant_id TEXT, -- Liên kết participants (Sinh viên làm CTV thời vụ)
-    
-    role CHARACTER VARYING NOT NULL DEFAULT 'co_organizer', -- 'lead_organizer', 'co_organizer', 'referee', 'seasonal_staff', 'support_staff'
-    custom_title CHARACTER VARYING, -- Tên hiển thị vai trò (VD: 'CTV Điều phối & Điểm danh', 'Trọng tài bàn', 'Ban Kỹ thuật')
-    
-    assigned_by UUID, -- Admin hoặc CTV thường trực phụ trách giải gán quyền
+    participant_id UUID, -- Liên kết participants (Sinh viên làm CTV thời vụ)
+    organizer_type VARCHAR(20) NOT NULL DEFAULT 'permanent', -- 'permanent', 'seasonal'
+    role VARCHAR(50) NOT NULL DEFAULT 'co_organizer', -- 'lead_organizer', 'co_organizer', 'referee', 'seasonal_staff', 'support_staff'
+    custom_title VARCHAR(100), -- Tên vai trò hiển thị trên chứng chỉ
+    assigned_by UUID,
     assigned_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     CONSTRAINT tournament_organizers_pkey PRIMARY KEY (id),
@@ -159,33 +164,24 @@ CREATE TABLE IF NOT EXISTS public.tournament_organizers (
 CREATE UNIQUE INDEX IF NOT EXISTS uq_to_user ON public.tournament_organizers(tournament_id, user_id) WHERE user_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_to_participant ON public.tournament_organizers(tournament_id, participant_id) WHERE participant_id IS NOT NULL;
 
-COMMENT ON TABLE public.tournament_organizers IS 'Ban tổ chức giải đấu bao gồm CTV Thường trực (users) và CTV Thời vụ (sinh viên từ participants)';
-COMMENT ON COLUMN public.tournament_organizers.organizer_type IS 'Phân loại: permanent (CTV thường trực), seasonal (CTV thời vụ là sinh viên)';
-COMMENT ON COLUMN public.tournament_organizers.custom_title IS 'Tên vai trò hiển thị trên giấy chứng nhận BTC (VD: CTV Điều phối, Trọng tài)';
-
 -- =============================================================================
 -- 5. BẢNG registrations (Đơn đăng ký tham gia giải đấu)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.registrations (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     tournament_id UUID NOT NULL,
-    captain_id TEXT NOT NULL, -- Đội trưởng hoặc cá nhân đăng ký
-    team_name CHARACTER VARYING, -- Tên đội (áp dụng game đồng đội)
+    captain_id UUID NOT NULL, -- Đội trưởng hoặc cá nhân đăng ký (UUID)
+    team_name VARCHAR(100) NOT NULL,
     team_avatar_url TEXT,
-    
-    -- Chuẩn hóa Ingame ID của đội trưởng/thí sinh cá nhân (Riot ID / Tên kiện tướng)
-    ingame_id CHARACTER VARYING,
-    
-    -- Cơ chế tìm kiếm và tuyển thêm thành viên
-    is_recruiting BOOLEAN NOT NULL DEFAULT false, -- Đang bật tuyển quân (VD: 4/7 người)
-    recruitment_notes TEXT, -- Ghi chú tuyển vị trí (VD: Cần 1 Mid, 1 SP rank Cao thủ)
-    
-    submitted_data JSONB NOT NULL DEFAULT '{}'::jsonb, -- Dữ liệu các trường động
-    status CHARACTER VARYING NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'rejected', 'cancelled'
+    ingame_id VARCHAR(100),
+    is_recruiting BOOLEAN NOT NULL DEFAULT false,
+    recruitment_notes TEXT,
+    seed_number INT,
+    submitted_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'rejected' (BỎ CANCELLED)
     rejection_reason TEXT,
     reviewed_by UUID,
     reviewed_at TIMESTAMP WITH TIME ZONE,
-    
     registered_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
@@ -193,46 +189,43 @@ CREATE TABLE IF NOT EXISTS public.registrations (
     CONSTRAINT registrations_tournament_id_fkey FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE,
     CONSTRAINT registrations_captain_id_fkey FOREIGN KEY (captain_id) REFERENCES public.participants(id) ON DELETE RESTRICT,
     CONSTRAINT registrations_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.users(id) ON DELETE SET NULL,
-    CONSTRAINT chk_registration_status CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled'))
+    CONSTRAINT chk_registration_status CHECK (status IN ('pending', 'approved', 'rejected'))
 );
 
-COMMENT ON TABLE public.registrations IS 'Đơn đăng ký tham gia giải đấu (cá nhân hoặc đại diện đội)';
-COMMENT ON COLUMN public.registrations.is_recruiting IS 'Đánh dấu đội đang tìm kiếm thêm thành viên trên hệ thống';
-COMMENT ON COLUMN public.registrations.ingame_id IS 'Tên nhân vật / Riot ID / Ingame ID chính xác trong game';
-
 -- =============================================================================
--- 6. BẢNG registration_members (Danh sách thành viên trong đội)
+-- 6. BẢNG registration_members (Danh sách thành viên đội)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.registration_members (
+    id UUID NOT NULL DEFAULT uuid_generate_v4(),
     registration_id UUID NOT NULL,
-    participant_id TEXT NOT NULL,
+    participant_id UUID NOT NULL,
     is_captain BOOLEAN NOT NULL DEFAULT false,
-    ingame_id CHARACTER VARYING, -- Ingame ID chính xác của thành viên này
-    role_in_team CHARACTER VARYING, -- Vị trí thi đấu: 'Top', 'Jungle', 'Mid', 'AD', 'SP', 'Sub'...
+    ingame_id VARCHAR(100),
+    role_in_team VARCHAR(50) DEFAULT 'member',
     joined_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
-    CONSTRAINT registration_members_pkey PRIMARY KEY (registration_id, participant_id),
+    CONSTRAINT registration_members_pkey PRIMARY KEY (id),
     CONSTRAINT fk_rm_registration FOREIGN KEY (registration_id) REFERENCES public.registrations(id) ON DELETE CASCADE,
-    CONSTRAINT fk_rm_participant FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE RESTRICT
+    CONSTRAINT fk_rm_participant FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE RESTRICT,
+    CONSTRAINT uq_reg_member UNIQUE (registration_id, participant_id)
 );
 
-COMMENT ON TABLE public.registration_members IS 'Thành viên thuộc một đội đăng ký thi đấu';
+CREATE UNIQUE INDEX IF NOT EXISTS uq_registration_member_per_tournament 
+    ON public.registration_members(participant_id, registration_id);
 
 -- =============================================================================
--- 7. BẢNG team_join_requests (Yêu cầu xin gia nhập đội đang thiếu slot)
+-- 7. BẢNG team_join_requests (Yêu cầu xin gia nhập đội tuyển quân)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.team_join_requests (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     registration_id UUID NOT NULL,
-    participant_id TEXT NOT NULL, -- Sinh viên muốn xin vào đội
-    ingame_id CHARACTER VARYING NOT NULL, -- Ingame ID của ứng viên
-    message TEXT, -- Lời nhắn / thông tin rank, lane sở trường
-    status CHARACTER VARYING NOT NULL DEFAULT 'pending', -- 'pending', 'accepted', 'rejected', 'cancelled'
-    
-    processed_by TEXT, -- Đội trưởng xử lý
+    participant_id UUID NOT NULL,
+    ingame_id VARCHAR(100) NOT NULL,
+    message TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending', 'accepted', 'rejected' (BỎ CANCELLED)
+    processed_by UUID,
     processed_at TIMESTAMP WITH TIME ZONE,
     rejection_reason TEXT,
-    
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
@@ -240,10 +233,9 @@ CREATE TABLE IF NOT EXISTS public.team_join_requests (
     CONSTRAINT fk_tjr_registration FOREIGN KEY (registration_id) REFERENCES public.registrations(id) ON DELETE CASCADE,
     CONSTRAINT fk_tjr_participant FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE CASCADE,
     CONSTRAINT fk_tjr_processed_by FOREIGN KEY (processed_by) REFERENCES public.participants(id) ON DELETE SET NULL,
-    CONSTRAINT chk_tjr_status CHECK (status IN ('pending', 'accepted', 'rejected', 'cancelled'))
+    CONSTRAINT chk_tjr_status CHECK (status IN ('pending', 'accepted', 'rejected')),
+    CONSTRAINT uq_tjr_registration_participant UNIQUE (registration_id, participant_id)
 );
-
-COMMENT ON TABLE public.team_join_requests IS 'Yêu cầu xin vào đội của người chơi tự do gửi tới đội trưởng';
 
 -- =============================================================================
 -- 8. BẢNG brackets (Nhánh đấu / Giai đoạn giải đấu)
@@ -251,382 +243,237 @@ COMMENT ON TABLE public.team_join_requests IS 'Yêu cầu xin vào đội của 
 CREATE TABLE IF NOT EXISTS public.brackets (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     tournament_id UUID NOT NULL,
-    name CHARACTER VARYING NOT NULL, -- 'Vòng loại', 'Vòng bảng', 'Playoffs Nhánh thắng - thua', 'TFT Vòng 1'
-    format CHARACTER VARYING NOT NULL, -- 'single_elimination', 'double_elimination', 'round_robin', 'tft_lobbies'
-    status CHARACTER VARYING NOT NULL DEFAULT 'draft', -- 'draft', 'published', 'in_progress', 'completed'
-    settings JSONB NOT NULL DEFAULT '{}'::jsonb, -- Cấu hình: { "default_bo": 3, "advance_per_lobby": 4, "tft_points": [8,7,6,5,4,3,2,1] }
-    
+    name VARCHAR(100) NOT NULL,
+    bracket_type VARCHAR(50) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
     CONSTRAINT brackets_pkey PRIMARY KEY (id),
-    CONSTRAINT fk_brackets_tournament FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE,
-    CONSTRAINT chk_bracket_format CHECK (format IN ('single_elimination', 'double_elimination', 'round_robin', 'tft_lobbies', 'swiss')),
-    CONSTRAINT chk_bracket_status CHECK (status IN ('draft', 'published', 'in_progress', 'completed'))
+    CONSTRAINT fk_brackets_tournament FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE
 );
 
-COMMENT ON TABLE public.brackets IS 'Cấu trúc các nhánh đấu hoặc giai đoạn thi đấu trong giải';
-
 -- =============================================================================
--- 9. BẢNG bracket_rounds (Các Vòng thi đấu trong Nhánh)
+-- 9. BẢNG bracket_rounds (Vòng thi đấu trong nhánh)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.bracket_rounds (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     bracket_id UUID NOT NULL,
-    round_number INTEGER NOT NULL, -- 1, 2, 3, 4...
-    name CHARACTER VARYING NOT NULL, -- 'Vòng 1/16', 'Tứ kết', 'Bán kết', 'Chung kết', 'Lobby Round 1'
-    bo_type INTEGER NOT NULL DEFAULT 1, -- BO1, BO3, BO5, BO7
-    order_index INTEGER NOT NULL DEFAULT 0,
+    round_number INT NOT NULL,
+    name VARCHAR(100) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
     CONSTRAINT bracket_rounds_pkey PRIMARY KEY (id),
     CONSTRAINT fk_rounds_bracket FOREIGN KEY (bracket_id) REFERENCES public.brackets(id) ON DELETE CASCADE
 );
 
-COMMENT ON TABLE public.bracket_rounds IS 'Các vòng đấu trong một nhánh (Vòng 1, Tứ kết, Bán kết...)';
-
 -- =============================================================================
--- 10. BẢNG matches (Trận đấu / Phòng đấu TFT)
+-- 10. BẢNG matches (Trận đấu / Phòng đấu)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.matches (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
-    bracket_id UUID NOT NULL,
-    round_id UUID NOT NULL,
-    match_code CHARACTER VARYING NOT NULL, -- Mã trận: 'M01', 'QF1', 'TFT-R1-L1'
-    match_type CHARACTER VARYING NOT NULL DEFAULT 'head_to_head', -- 'head_to_head' (1v1), 'tft_lobby' (8 người)
-    
+    bracket_round_id UUID NOT NULL,
+    match_order INT NOT NULL,
+    bo_format VARCHAR(10) NOT NULL DEFAULT 'BO1',
+    status VARCHAR(20) NOT NULL DEFAULT 'scheduled', 
+    -- 'scheduled', 'in_progress', 'awaiting_confirmation', 'disputed', 'completed', 'cancelled' (BỎ READY)
     scheduled_at TIMESTAMP WITH TIME ZONE,
-    started_at TIMESTAMP WITH TIME ZONE,
-    ended_at TIMESTAMP WITH TIME ZONE,
-    
-    status CHARACTER VARYING NOT NULL DEFAULT 'scheduled', -- 'scheduled', 'ready', 'in_progress', 'completed', 'cancelled'
-    winner_registration_id UUID, -- Đội/người chiến thắng (đối với 1v1)
-    
-    -- Cây tiến trình nhánh đấu
-    next_match_id UUID, -- Trận kế tiếp nhánh thắng
-    loser_next_match_id UUID, -- Trận kế tiếp nhánh thua (Double Elimination)
-    
-    referee_id UUID, -- Trọng tài / CTV giám sát
-    custom_room_info JSONB DEFAULT '{}'::jsonb, -- Thông tin phòng Custom (Room name, Pass, Link room)
-    notes TEXT,
+    winner_next_match_id UUID,
+    loser_next_match_id UUID,
+    winner_next_slot SMALLINT CHECK (winner_next_slot IN (1, 2)),
+    loser_next_slot SMALLINT CHECK (loser_next_slot IN (1, 2)),
     
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     CONSTRAINT matches_pkey PRIMARY KEY (id),
-    CONSTRAINT fk_matches_bracket FOREIGN KEY (bracket_id) REFERENCES public.brackets(id) ON DELETE CASCADE,
-    CONSTRAINT fk_matches_round FOREIGN KEY (round_id) REFERENCES public.bracket_rounds(id) ON DELETE CASCADE,
-    CONSTRAINT fk_matches_winner FOREIGN KEY (winner_registration_id) REFERENCES public.registrations(id) ON DELETE SET NULL,
-    CONSTRAINT fk_matches_next FOREIGN KEY (next_match_id) REFERENCES public.matches(id) ON DELETE SET NULL,
+    CONSTRAINT fk_matches_round FOREIGN KEY (bracket_round_id) REFERENCES public.bracket_rounds(id) ON DELETE CASCADE,
+    CONSTRAINT fk_matches_winner_next FOREIGN KEY (winner_next_match_id) REFERENCES public.matches(id) ON DELETE SET NULL,
     CONSTRAINT fk_matches_loser_next FOREIGN KEY (loser_next_match_id) REFERENCES public.matches(id) ON DELETE SET NULL,
-    CONSTRAINT fk_matches_referee FOREIGN KEY (referee_id) REFERENCES public.users(id) ON DELETE SET NULL,
-    CONSTRAINT chk_match_type CHECK (match_type IN ('head_to_head', 'tft_lobby')),
-    CONSTRAINT chk_match_status CHECK (status IN ('scheduled', 'ready', 'in_progress', 'completed', 'cancelled', 'disputed'))
+    CONSTRAINT chk_match_status CHECK (status IN ('scheduled', 'in_progress', 'awaiting_confirmation', 'disputed', 'completed', 'cancelled')),
+    CONSTRAINT uq_round_match_order UNIQUE (bracket_round_id, match_order)
 );
 
-COMMENT ON TABLE public.matches IS 'Các trận đấu đối kháng 1v1 hoặc phòng thi đấu TFT nhiều người';
-
 -- =============================================================================
--- 11. BẢNG match_participants (Đội/VĐV trong Trận đấu & Phòng TFT)
+-- 11. BẢNG match_participants (Thí sinh / Đội tham gia trận)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.match_participants (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     match_id UUID NOT NULL,
-    registration_id UUID NOT NULL,
-    
-    slot_number INTEGER NOT NULL DEFAULT 1, -- Vị trí slot (1 hoặc 2 cho 1v1; 1..8 cho TFT)
-    score INTEGER NOT NULL DEFAULT 0, -- Số ván thắng trong BO hoặc tổng điểm
-    rank_position INTEGER, -- Thứ hạng trong phòng TFT (1 đến 8)
-    is_winner BOOLEAN NOT NULL DEFAULT false,
-    
-    evidence_url TEXT, -- Ảnh chụp màn hình kết quả trận đấu làm bằng chứng
-    points_awarded INTEGER NOT NULL DEFAULT 0, -- Điểm tích lũy được cộng
-    
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    registration_id UUID,
+    participant_id UUID,
+    score INT DEFAULT 0,
+    rank_placement INT,
+    result VARCHAR(20) CHECK (result IN ('win', 'loss', 'draw', 'pending')),
     
     CONSTRAINT match_participants_pkey PRIMARY KEY (id),
-    CONSTRAINT uq_match_participant UNIQUE (match_id, registration_id),
     CONSTRAINT fk_mp_match FOREIGN KEY (match_id) REFERENCES public.matches(id) ON DELETE CASCADE,
-    CONSTRAINT fk_mp_registration FOREIGN KEY (registration_id) REFERENCES public.registrations(id) ON DELETE CASCADE
+    CONSTRAINT fk_mp_registration FOREIGN KEY (registration_id) REFERENCES public.registrations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_mp_participant FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE CASCADE,
+    CONSTRAINT chk_match_subject CHECK (
+        (registration_id IS NOT NULL AND participant_id IS NULL) OR 
+        (registration_id IS NULL AND participant_id IS NOT NULL)
+    )
 );
 
-COMMENT ON TABLE public.match_participants IS 'Danh sách người chơi / đội trong một trận đấu hoặc phòng đấu TFT';
-
 -- =============================================================================
--- 12. BẢNG match_games (Chi tiết từng ván trong trận BO3/BO5)
+-- 12. BẢNG match_games (Chi tiết từng ván trong trận BO)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.match_games (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     match_id UUID NOT NULL,
-    game_number INTEGER NOT NULL, -- 1, 2, 3...
-    duration_seconds INTEGER,
+    game_number INT NOT NULL,
     winner_registration_id UUID,
-    result_details JSONB DEFAULT '{}'::jsonb, -- Chi tiết MVP, tỉ số kill, bans/picks
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    winner_participant_id UUID,
+    duration_seconds INT,
+    game_metadata JSONB DEFAULT '{}'::jsonb,
+    notes TEXT,
     
     CONSTRAINT match_games_pkey PRIMARY KEY (id),
-    CONSTRAINT uq_match_game_number UNIQUE (match_id, game_number),
     CONSTRAINT fk_mg_match FOREIGN KEY (match_id) REFERENCES public.matches(id) ON DELETE CASCADE,
-    CONSTRAINT fk_mg_winner FOREIGN KEY (winner_registration_id) REFERENCES public.registrations(id) ON DELETE SET NULL
+    CONSTRAINT fk_mg_winner_reg FOREIGN KEY (winner_registration_id) REFERENCES public.registrations(id) ON DELETE SET NULL,
+    CONSTRAINT fk_mg_winner_part FOREIGN KEY (winner_participant_id) REFERENCES public.participants(id) ON DELETE SET NULL,
+    CONSTRAINT chk_game_winner CHECK (winner_registration_id IS NULL OR winner_participant_id IS NULL),
+    CONSTRAINT uq_match_game_number UNIQUE (match_id, game_number)
 );
 
-COMMENT ON TABLE public.match_games IS 'Chi tiết kết quả từng ván đấu của trận BO3/BO5';
-
 -- =============================================================================
--- 13. BẢNG notifications (Thông báo hệ thống cho Sinh viên & Quản trị)
--- =============================================================================
--- 13. BẢNG check_ins (Điểm danh Ngày thi đấu - QR/GPS/Minh chứng)
+-- 13. BẢNG check_ins (Điểm danh ngày thi đấu)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.check_ins (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     tournament_id UUID NOT NULL,
-    registration_id UUID NOT NULL,
-    participant_id TEXT NOT NULL,
-    
-    checkin_method CHARACTER VARYING NOT NULL DEFAULT 'qr_scan', -- 'qr_scan', 'proof_submission', 'ai_ocr', 'manual_admin'
-    status CHARACTER VARYING NOT NULL DEFAULT 'approved', -- 'approved', 'pending_review', 'rejected'
-    proof_url TEXT, -- Ảnh minh chứng nếu thí sinh submit ảnh
-    
-    -- Thu thập dữ liệu Geolocation & Device Fingerprint
-    latitude DOUBLE PRECISION,
-    longitude DOUBLE PRECISION,
-    location_accuracy DOUBLE PRECISION, -- mét
-    ip_address CHARACTER VARYING,
-    device_info TEXT, -- Trình duyệt, User-Agent, Fingerprint
-    
-    checked_in_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    reviewed_by UUID, -- Admin hoặc CTV duyệt minh chứng / xác nhận AI OCR
-    reviewed_at TIMESTAMP WITH TIME ZONE,
-    notes TEXT,
-    
+    participant_id UUID NOT NULL,
+    method VARCHAR(30) NOT NULL CHECK (method IN ('qr_scan', 'proof_submission', 'manual_admin')),
+    qr_token_id UUID,
+    latitude DECIMAL(10,8),
+    longitude DECIMAL(11,8),
+    distance_meters DECIMAL(8,2),
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    gps_accuracy_meters DECIMAL(8,2),
+    proof_image_url VARCHAR(500),
+    status VARCHAR(20) NOT NULL DEFAULT 'pending_review' CHECK (status IN ('approved', 'rejected', 'pending_review')),
+    reviewed_by UUID REFERENCES public.users(id),
+    checked_in_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT check_ins_pkey PRIMARY KEY (id),
-    CONSTRAINT uq_tournament_participant_checkin UNIQUE (tournament_id, participant_id),
-    CONSTRAINT fk_checkin_tournament FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE,
-    CONSTRAINT fk_checkin_registration FOREIGN KEY (registration_id) REFERENCES public.registrations(id) ON DELETE CASCADE,
-    CONSTRAINT fk_checkin_participant FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE CASCADE,
-    CONSTRAINT fk_checkin_reviewed_by FOREIGN KEY (reviewed_by) REFERENCES public.users(id) ON DELETE SET NULL,
-    CONSTRAINT chk_checkin_method CHECK (checkin_method IN ('qr_scan', 'proof_submission', 'ai_ocr', 'manual_admin')),
-    CONSTRAINT chk_checkin_status CHECK (status IN ('approved', 'pending_review', 'rejected'))
+    CONSTRAINT fk_ci_tournament FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ci_participant FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE CASCADE,
+    CONSTRAINT uq_checkin_per_participant UNIQUE (tournament_id, participant_id)
 );
 
-COMMENT ON TABLE public.check_ins IS 'Điểm danh ngày thi đấu qua Quét QR kèm GPS, Submit ảnh minh chứng hoặc AI OCR';
-
 -- =============================================================================
--- 14. BẢNG ai_checkin_sessions (Phiên phân tích AI Check-in Liên Quân Mobile)
+-- 14. BẢNG checkin_qr_tokens (Mã QR động xoay vòng 30s)
 -- =============================================================================
-CREATE TABLE IF NOT EXISTS public.ai_checkin_sessions (
-    id UUID NOT NULL DEFAULT uuid_generate_v4(),
-    tournament_id UUID NOT NULL,
-    match_id UUID,
-    created_by UUID NOT NULL, -- CTV hoặc Admin tải ảnh lên
-    source_type CHARACTER VARYING NOT NULL DEFAULT 'congdong_lienquan', -- 'congdong_lienquan', 'custom_lobby'
-    status CHARACTER VARYING NOT NULL DEFAULT 'pending_review', -- 'processing', 'pending_review', 'confirmed', 'cancelled'
-    total_detected INTEGER DEFAULT 0,
-    total_matched INTEGER DEFAULT 0,
-    image_purged BOOLEAN NOT NULL DEFAULT false, -- Đánh dấu ảnh tạm đã bị xóa vĩnh viễn
-    confirmed_by UUID,
-    confirmed_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT ai_checkin_sessions_pkey PRIMARY KEY (id),
-    CONSTRAINT fk_aics_tournament FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE,
-    CONSTRAINT fk_aics_match FOREIGN KEY (match_id) REFERENCES public.matches(id) ON DELETE SET NULL,
-    CONSTRAINT fk_aics_created_by FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_aics_confirmed_by FOREIGN KEY (confirmed_by) REFERENCES public.users(id) ON DELETE SET NULL,
-    CONSTRAINT chk_aics_source_type CHECK (source_type IN ('congdong_lienquan', 'custom_lobby')),
-    CONSTRAINT chk_aics_status CHECK (status IN ('processing', 'pending_review', 'confirmed', 'cancelled'))
+CREATE TABLE IF NOT EXISTS public.checkin_qr_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tournament_id UUID NOT NULL REFERENCES public.tournaments(id) ON DELETE CASCADE,
+    token_hash VARCHAR(128) UNIQUE NOT NULL,
+    issued_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ
 );
 
-COMMENT ON TABLE public.ai_checkin_sessions IS 'Phiên phân tích nhận diện chữ xanh check-in Liên Quân Mobile qua AI';
+ALTER TABLE public.check_ins ADD CONSTRAINT fk_checkin_qr_token 
+    FOREIGN KEY (qr_token_id) REFERENCES public.checkin_qr_tokens(id) ON DELETE SET NULL;
 
 -- =============================================================================
--- 15. BẢNG ai_checkin_detections (Chi tiết Bounding Box & Đề xuất Thí sinh Khớp)
--- =============================================================================
-CREATE TABLE IF NOT EXISTS public.ai_checkin_detections (
-    id UUID NOT NULL DEFAULT uuid_generate_v4(),
-    session_id UUID NOT NULL,
-    raw_text TEXT NOT NULL, -- Text chữ xanh trích xuất
-    ocr_confidence DOUBLE PRECISION, -- Độ tin cậy OCR (0.0 - 1.0)
-    bounding_box JSONB DEFAULT '{}'::jsonb, -- Tọa độ khung chữ trên ảnh {x, y, w, h}
-    matched_participant_id TEXT, -- Thí sinh hệ thống nhận diện khớp
-    matched_registration_id UUID, -- Đội của thí sinh
-    similarity_score DOUBLE PRECISION, -- Điểm tương đồng Fuzzy Match (0.0 - 1.0)
-    is_manually_adjusted BOOLEAN NOT NULL DEFAULT false, -- Trọng tài đã sửa tay
-    is_confirmed BOOLEAN NOT NULL DEFAULT true, -- Được chọn check-in
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT ai_checkin_detections_pkey PRIMARY KEY (id),
-    CONSTRAINT fk_aicd_session FOREIGN KEY (session_id) REFERENCES public.ai_checkin_sessions(id) ON DELETE CASCADE,
-    CONSTRAINT fk_aicd_participant FOREIGN KEY (matched_participant_id) REFERENCES public.participants(id) ON DELETE SET NULL,
-    CONSTRAINT fk_aicd_registration FOREIGN KEY (matched_registration_id) REFERENCES public.registrations(id) ON DELETE SET NULL
-);
-
-COMMENT ON TABLE public.ai_checkin_detections IS 'Chi tiết các vị trí chữ xanh và đề xuất thí sinh tương ứng';
-
--- =============================================================================
--- 15. BẢNG certificates (Giấy chứng nhận Điện tử E-Certificate cho VĐV & Ban tổ chức/CTV)
+-- 15. BẢNG certificates (Giấy chứng nhận điện tử)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.certificates (
-    id UUID NOT NULL DEFAULT uuid_generate_v4(),
-    tournament_id UUID NOT NULL,
-    
-    -- Loại chứng chỉ: 'participant' (VĐV/Người chơi thi đấu), 'organizer' (Ban tổ chức/CTV thời vụ)
-    certificate_type CHARACTER VARYING NOT NULL DEFAULT 'participant', -- 'participant', 'organizer'
-    
-    participant_id TEXT NOT NULL, -- Sinh viên nhận chứng chỉ (VĐV hoặc CTV thời vụ)
-    registration_id UUID, -- Đơn đăng ký thi đấu (Bắt buộc với VĐV, NULL với CTV)
-    organizer_id UUID, -- Liên kết vị trí trong ban tổ chức (Dành cho CTV thời vụ / BTC)
-    
-    certificate_code CHARACTER VARYING NOT NULL UNIQUE, -- Mã tra cứu duy nhất: DUT-CERT-2026-TFT-08492
-    title CHARACTER VARYING NOT NULL, -- 'Giấy Chứng Nhận Tham Gia Giải Đấu', 'Giấy Chứng Nhận Ban Tổ Chức', 'Giấy Khen Vô Địch'
-    achievement_title CHARACTER VARYING, -- 'Vô Địch', 'Á Quân', 'Top 4', 'Vận Động Viên', 'Cộng Tác Viên Tổ Chức', 'Trọng Tài Giải Đấu'
-    certificate_url TEXT NOT NULL, -- URL file PDF hoặc ảnh PNG kết xuất
-    qr_verify_url TEXT, -- Link tra cứu xác thực công khai
-    metadata JSONB NOT NULL DEFAULT '{}'::jsonb, -- Thông tin snapshot lúc cấp (Họ tên, MSSV, Điểm/Vai trò)
-    
-    is_revoked BOOLEAN NOT NULL DEFAULT false, -- Trạng thái thu hồi nếu gian lận
-    issued_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT certificates_pkey PRIMARY KEY (id),
-    CONSTRAINT uq_tournament_participant_cert UNIQUE (tournament_id, participant_id, certificate_type),
-    CONSTRAINT fk_cert_tournament FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE,
-    CONSTRAINT fk_cert_participant FOREIGN KEY (participant_id) REFERENCES public.participants(id) ON DELETE CASCADE,
-    CONSTRAINT fk_cert_registration FOREIGN KEY (registration_id) REFERENCES public.registrations(id) ON DELETE CASCADE,
-    CONSTRAINT fk_cert_organizer FOREIGN KEY (organizer_id) REFERENCES public.tournament_organizers(id) ON DELETE SET NULL,
-    CONSTRAINT chk_certificate_type CHECK (certificate_type IN ('participant', 'organizer')),
-    CONSTRAINT chk_cert_requirements CHECK (
-        (certificate_type = 'participant' AND registration_id IS NOT NULL) OR
-        (certificate_type = 'organizer')
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    certificate_code VARCHAR(64) UNIQUE NOT NULL,
+    tournament_id UUID NOT NULL REFERENCES public.tournaments(id) ON DELETE CASCADE,
+    recipient_type VARCHAR(20) NOT NULL CHECK (recipient_type IN ('athlete', 'organizer')),
+    participant_id UUID REFERENCES public.participants(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+    title VARCHAR(150) NOT NULL,
+    rank_placement INT,
+    public_name_allowed BOOLEAN NOT NULL DEFAULT FALSE,
+    pdf_file_url VARCHAR(500) NOT NULL,
+    issued_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_cert_recipient CHECK (
+        (recipient_type = 'athlete' AND participant_id IS NOT NULL AND user_id IS NULL) OR
+        (recipient_type = 'organizer' AND user_id IS NOT NULL AND participant_id IS NULL)
     )
 );
 
-COMMENT ON TABLE public.certificates IS 'Giấy chứng nhận điện tử tự động xuất cho VĐV đã check-in hoặc CTV thời vụ/BTC tự xuất sau giải đấu';
-COMMENT ON COLUMN public.certificates.certificate_type IS 'Loại giấy chứng nhận: participant (Vận động viên thi đấu) hoặc organizer (Ban tổ chức / CTV thời vụ)';
+CREATE UNIQUE INDEX IF NOT EXISTS uq_certificate_athlete 
+    ON public.certificates(tournament_id, participant_id) WHERE recipient_type = 'athlete';
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_certificate_organizer 
+    ON public.certificates(tournament_id, user_id) WHERE recipient_type = 'organizer';
 
 -- =============================================================================
--- 16. BẢNG notifications (Thông báo hệ thống cho Sinh viên & Quản trị)
+-- 16. BẢNG auth_tokens (Mã xác thực email & Đặt lại mật khẩu)
 -- =============================================================================
-CREATE TABLE IF NOT EXISTS public.notifications (
-    id UUID NOT NULL DEFAULT uuid_generate_v4(),
-    recipient_type CHARACTER VARYING NOT NULL, -- 'user', 'participant'
-    recipient_id TEXT NOT NULL, -- ID người nhận
-    title TEXT NOT NULL,
-    message TEXT NOT NULL,
-    type CHARACTER VARYING NOT NULL, -- 'kyc_status', 'team_request', 'match_schedule', 'checkin_status', 'certificate_issued', 'system'
-    metadata JSONB DEFAULT '{}'::jsonb, -- Link, ID trận, ID giải...
-    is_read BOOLEAN NOT NULL DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT notifications_pkey PRIMARY KEY (id),
-    CONSTRAINT chk_recipient_type CHECK (recipient_type IN ('user', 'participant'))
+CREATE TABLE IF NOT EXISTS public.auth_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(128) UNIQUE NOT NULL,
+    purpose VARCHAR(30) NOT NULL CHECK (purpose IN ('email_verify', 'password_reset')),
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-COMMENT ON TABLE public.notifications IS 'Hệ thống thông báo đẩy phục vụ kiến trúc Event-Driven';
+-- =============================================================================
+-- 17. BẢNG report_exports (Tác vụ xuất báo cáo bất đồng bộ)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.report_exports (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    requested_by UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    idempotency_key UUID NOT NULL,
+    tournament_id UUID REFERENCES public.tournaments(id) ON DELETE SET NULL,
+    report_type VARCHAR(40) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'processing', 'completed', 'failed', 'expired')),
+    file_url VARCHAR(500),
+    expires_at TIMESTAMPTZ,
+    error_code VARCHAR(50),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMPTZ,
+    UNIQUE (requested_by, idempotency_key)
+);
 
 -- =============================================================================
--- 17. BẢNG audit_logs (Nhật ký thao tác hệ thống)
+-- 18. BẢNG audit_logs (Nhật ký kiểm toán — Bất biến APPEND-ONLY)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.audit_logs (
-    id UUID NOT NULL DEFAULT uuid_generate_v4(),
-    actor_id TEXT NOT NULL, -- User/Participant ID thực hiện hành động
-    actor_role CHARACTER VARYING NOT NULL, -- 'admin', 'ctv', 'participant', 'system'
-    action CHARACTER VARYING NOT NULL, -- 'APPROVE_STUDENT', 'CREATE_BRACKET', 'APPROVE_CHECKIN', 'ISSUE_CERTIFICATE', 'ADD_SEASONAL_STAFF'...
-    target_table CHARACTER VARYING NOT NULL,
-    target_id TEXT,
-    payload JSONB DEFAULT '{}'::jsonb,
-    ip_address CHARACTER VARYING,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT audit_logs_pkey PRIMARY KEY (id)
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    action VARCHAR(50) NOT NULL,
+    target_table VARCHAR(50) NOT NULL,
+    target_id UUID,
+    old_values JSONB,
+    new_values JSONB,
+    ip_address VARCHAR(45) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-COMMENT ON TABLE public.audit_logs IS 'Nhật ký kiểm tra phục vụ bảo mật và audit hành vi quản trị';
+-- =============================================================================
+-- 19. BẢNG notifications (Hạ tầng kỹ thuật hỗ trợ thông báo thời gian thực — NSC-FOUND-003)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    title VARCHAR(150) NOT NULL,
+    content TEXT NOT NULL,
+    type VARCHAR(50) NOT NULL DEFAULT 'system',
+    is_read BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
 -- =============================================================================
--- 18. THIẾT LẬP TẤT CẢ TRIGGERS TỰ ĐỘNG CẬP NHẬT updated_at
+-- 20. BẢNG ai_checkin_sessions & ai_checkin_detections (DEPRECATED — NSC-FOUND-003)
 -- =============================================================================
-DROP TRIGGER IF EXISTS trg_users_updated_at ON public.users;
-CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TABLE IF NOT EXISTS public.ai_checkin_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tournament_id UUID NOT NULL REFERENCES public.tournaments(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
-DROP TRIGGER IF EXISTS trg_participants_updated_at ON public.participants;
-CREATE TRIGGER trg_participants_updated_at BEFORE UPDATE ON public.participants FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-DROP TRIGGER IF EXISTS trg_tournaments_updated_at ON public.tournaments;
-CREATE TRIGGER trg_tournaments_updated_at BEFORE UPDATE ON public.tournaments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-DROP TRIGGER IF EXISTS trg_registrations_updated_at ON public.registrations;
-CREATE TRIGGER trg_registrations_updated_at BEFORE UPDATE ON public.registrations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-DROP TRIGGER IF EXISTS trg_team_join_requests_updated_at ON public.team_join_requests;
-CREATE TRIGGER trg_team_join_requests_updated_at BEFORE UPDATE ON public.team_join_requests FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-DROP TRIGGER IF EXISTS trg_brackets_updated_at ON public.brackets;
-CREATE TRIGGER trg_brackets_updated_at BEFORE UPDATE ON public.brackets FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-DROP TRIGGER IF EXISTS trg_matches_updated_at ON public.matches;
-CREATE TRIGGER trg_matches_updated_at BEFORE UPDATE ON public.matches FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- =============================================================================
--- 19. CHỈ MỤC TỐI ƯU HIỆU NĂNG TRUY VẤN (INDEXES)
--- =============================================================================
--- Participants
-CREATE INDEX IF NOT EXISTS idx_participants_status ON public.participants(status);
-CREATE INDEX IF NOT EXISTS idx_participants_student_id ON public.participants(student_id);
-CREATE INDEX IF NOT EXISTS idx_participants_email ON public.participants(email);
-
--- Tournaments
-CREATE INDEX IF NOT EXISTS idx_tournaments_status ON public.tournaments(status);
-CREATE INDEX IF NOT EXISTS idx_tournaments_code ON public.tournaments(code);
-CREATE INDEX IF NOT EXISTS idx_tournaments_created_by ON public.tournaments(created_by);
-
--- Tournament Organizers (CTV Thường trực & CTV Thời vụ)
-CREATE INDEX IF NOT EXISTS idx_to_tournament_id ON public.tournament_organizers(tournament_id);
-CREATE INDEX IF NOT EXISTS idx_to_user_id ON public.tournament_organizers(user_id);
-CREATE INDEX IF NOT EXISTS idx_to_participant_id ON public.tournament_organizers(participant_id);
-CREATE INDEX IF NOT EXISTS idx_to_organizer_type ON public.tournament_organizers(organizer_type);
-
--- Registrations & Members
-CREATE INDEX IF NOT EXISTS idx_registrations_tournament ON public.registrations(tournament_id);
-CREATE INDEX IF NOT EXISTS idx_registrations_captain ON public.registrations(captain_id);
-CREATE INDEX IF NOT EXISTS idx_registrations_status ON public.registrations(status);
-CREATE INDEX IF NOT EXISTS idx_registrations_recruiting ON public.registrations(is_recruiting) WHERE is_recruiting = true;
-CREATE INDEX IF NOT EXISTS idx_rm_participant ON public.registration_members(participant_id);
-
--- Team Join Requests
-CREATE INDEX IF NOT EXISTS idx_tjr_registration ON public.team_join_requests(registration_id);
-CREATE INDEX IF NOT EXISTS idx_tjr_participant ON public.team_join_requests(participant_id);
-CREATE INDEX IF NOT EXISTS idx_tjr_status ON public.team_join_requests(status);
-
--- Brackets, Rounds, Matches
-CREATE INDEX IF NOT EXISTS idx_brackets_tournament ON public.brackets(tournament_id);
-CREATE INDEX IF NOT EXISTS idx_bracket_rounds_bracket ON public.bracket_rounds(bracket_id);
-CREATE INDEX IF NOT EXISTS idx_matches_bracket ON public.matches(bracket_id);
-CREATE INDEX IF NOT EXISTS idx_matches_round ON public.matches(round_id);
-CREATE INDEX IF NOT EXISTS idx_matches_status ON public.matches(status);
-CREATE INDEX IF NOT EXISTS idx_mp_match ON public.match_participants(match_id);
-CREATE INDEX IF NOT EXISTS idx_mp_registration ON public.match_participants(registration_id);
-CREATE INDEX IF NOT EXISTS idx_mg_match ON public.match_games(match_id);
-
--- Check-ins
-CREATE INDEX IF NOT EXISTS idx_checkins_tournament ON public.check_ins(tournament_id);
-CREATE INDEX IF NOT EXISTS idx_checkins_participant ON public.check_ins(participant_id);
-CREATE INDEX IF NOT EXISTS idx_checkins_status ON public.check_ins(status);
-CREATE INDEX IF NOT EXISTS idx_checkins_method ON public.check_ins(checkin_method);
-
--- AI Check-in Sessions & Detections
-CREATE INDEX IF NOT EXISTS idx_aics_tournament ON public.ai_checkin_sessions(tournament_id);
-CREATE INDEX IF NOT EXISTS idx_aics_match ON public.ai_checkin_sessions(match_id);
-CREATE INDEX IF NOT EXISTS idx_aics_status ON public.ai_checkin_sessions(status);
-CREATE INDEX IF NOT EXISTS idx_aicd_session ON public.ai_checkin_detections(session_id);
-CREATE INDEX IF NOT EXISTS idx_aicd_participant ON public.ai_checkin_detections(matched_participant_id);
-
--- Certificates (VĐV & Ban tổ chức)
-CREATE INDEX IF NOT EXISTS idx_certs_tournament ON public.certificates(tournament_id);
-CREATE INDEX IF NOT EXISTS idx_certs_participant ON public.certificates(participant_id);
-CREATE INDEX IF NOT EXISTS idx_certs_code ON public.certificates(certificate_code);
-CREATE INDEX IF NOT EXISTS idx_certs_type ON public.certificates(certificate_type);
-CREATE INDEX IF NOT EXISTS idx_certs_organizer ON public.certificates(organizer_id);
-
--- Notifications & Audit
-CREATE INDEX IF NOT EXISTS idx_notif_recipient ON public.notifications(recipient_id, is_read);
-CREATE INDEX IF NOT EXISTS idx_audit_actor ON public.audit_logs(actor_id, action);
+CREATE TABLE IF NOT EXISTS public.ai_checkin_detections (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_id UUID NOT NULL REFERENCES public.ai_checkin_sessions(id) ON DELETE CASCADE,
+    detected_text TEXT,
+    similarity_score DECIMAL(5,2),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
