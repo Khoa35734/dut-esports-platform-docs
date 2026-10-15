@@ -7,7 +7,7 @@
 [![Testing: ISO%2029119](https://img.shields.io/badge/Testing-ISO%2F%2FIEC%2F%2FIEEE%2029119-purple.svg)]()
 [![Data Security: Zero CCCD](https://img.shields.io/badge/Data%20Security-Zero%20CCCD%20Invariant-red.svg)]()
 
-Tài nguyên đặc tả kỹ thuật, lược đồ cơ sở dữ liệu và kiến trúc kiểm thử tự động toàn diện của **Nền tảng Quản lý Giải đấu Thể thao Điện tử DUT ESPORTS** — phát triển và vận hành bởi **Câu lạc bộ Thể thao Điện tử, Trường Đại học Bách khoa — Đại học Đà Nẵng (DUT)**.
+Tài nguyên đặc tả kỹ thuật, lược đồ cơ sở dữ liệu và kiến trúc kiểm thử tự động toàn diện của **Nền tảng Quản lý và vận hành Giải đấu Esports DUT ESPORTS** — phát triển và vận hành bởi **Câu lạc bộ Thể thao Điện tử, Trường Đại học Bách khoa — Đại học Đà Nẵng - DUT ESPORTS**.
 
 ---
 
