@@ -31,11 +31,19 @@ Hệ sinh thái nền tảng DUT ESPORTS được phân tách thành 3 phân h�
 
 ```text
 D:\DUT ESPORTS\
-├── Web-giai-dau-docs/           # [REPOSITORY NÀY] Tài liệu Đặc tả, CSDL & Kiến trúc Kiểm thử
+├── Web-giai-dau-docs/           # [REPOSITORY NÀY] Đặc tả Nghiệp vụ, Thiết kế CSDL & Kiểm thử
 │   ├── SRS.md                   # Đặc tả Yêu cầu Phần mềm phiên bản 1.1 (IEEE Std 830-1998)
 │   ├── database_schema.sql      # Lược đồ DDL PostgreSQL 18 bảng chuẩn hóa (v2.0)
 │   ├── migrations.sql           # Tập lệnh Migration và đồng bộ chỉ mục toàn vẹn
-│   ├── docs/testing/            # Bộ hồ sơ Kiểm toán SRS, Kế hoạch & Kịch bản Kiểm thử
+│   ├── docs/                    # HỆ THỐNG TÀI LIỆU DỰ ÁN TOÀN DIỆN
+│   │   ├── BUSINESS_RULES.md    # 30+ Quy tắc nghiệp vụ chi tiết (BR-AUTH, BR-KYC, BR-TRN...)
+│   │   ├── WORKFLOWS.md         # Quy trình nghiệp vụ 8 luồng vận hành (WF-001 -> WF-008)
+│   │   ├── DOMAIN_RULES.md      # Quy tắc miền Esports (Elimination, TFT, Byes, BOx)
+│   │   ├── ACCEPTANCE_CRITERIA.md # Tiêu chuẩn nghiệm thu chức năng
+│   │   ├── RBAC.md              # Ma trận phân quyền truy cập 4 vai trò
+│   │   ├── FIGMA_*.md           # Đặc tả Handoff UI/UX & Traceability từ thiết kế
+│   │   ├── tasks/               # 12 Hồ sơ đặc tả tác vụ kỹ thuật chi tiết
+│   │   └── testing/             # Bộ hồ sơ Kiểm toán SRS, Kế hoạch & Kịch bản Kiểm thử
 │   └── tests/                   # Khung tự động hóa kiểm thử 5 tầng (Node.js Native + Playwright)
 │
 ├── Web-giai-dau/                # [BACKEND REPOSITORY] API Server
@@ -100,39 +108,43 @@ Dự án tập trung kiểm định chuyên sâu vào **02 Chức năng Cốt l�
 
 ---
 
-## 5. CẤU TRÚC THƯ MỤC TÀI LIỆU KIỂM THỬ (DOCUMENTATION SITEMAP)
+## 5. CẤU TRÚC HỆ THỐNG TÀI LIỆU DỰ ÁN (DOCUMENTATION SITEMAP)
 
-Toàn bộ các tài liệu kỹ thuật và học thuật được tổ chức bài bản tại `docs/testing/`:
+Toàn bộ hệ thống tài liệu đặc tả, phân tích thiết kế và kiểm thử được tổ chức quy chuẩn tại thư mục `docs/`:
 
-```text
-docs/testing/
-├── REPOSITORY_AUDIT.md                              # Khảo sát kho mã nguồn & Ma trận tính năng
-├── PROJECT_PLAN.md                                  # Kế hoạch dự án 3 tuần độc lập cho Solo Developer
-├── TASK_BOARD.md                                    # Bảng Kanban theo dõi công việc
-├── WORK_LOG.md                                      # Nhật ký tiến trình chi tiết theo mốc thời gian
-├── srs-audit/                                       # HỒ SƠ KIỂM TOÁN SRS 1.1 & KHUYẾT TẬT
-│   ├── SRS_AUDIT_REPORT.md                          # Báo cáo kiểm toán chuyên sâu 8 vùng rủi ro
-│   ├── SRS_ISSUES.md                                # Danh mục 10 lỗi & phản ví dụ logic
-│   ├── SRS_IMPROVEMENT_PROPOSAL.md                  # Đề xuất cải tiến kỹ thuật
-│   ├── BUSINESS_RULE_GAPS.md                        # Phân tích 6 khoảng trống quy tắc nghiệp vụ
-│   ├── DATABASE_CONSISTENCY_REPORT.md               # Đối soát 18 bảng CSDL vật lý
-│   ├── STATE_TRANSITION_MATRIX.md                   # Ma trận chuyển trạng thái hình thức
-│   ├── DECISION_LOG.md                              # Nhật ký quyết định kỹ thuật
-│   └── SRS_REVISED_DRAFT.md                         # Bản thảo cải tiến SRS 1.2 Draft
-├── test-design/                                     # BỘ THIẾT KẾ KIỂM THỬ PHẦN MỀM
-│   ├── TEST_PLAN.md                                 # Master Test Plan ISO 29119
-│   ├── TEST_STRATEGY.md                             # Chiến lược kiểm thử thống nhất 5 tầng
-│   ├── TEST_SCENARIOS.md                            # Danh mục 23 kịch bản kiểm thử
-│   ├── TEST_CASES.md                                # Đặc tả 17 ca kiểm thử chi tiết
-│   ├── REQUIREMENT_TRACEABILITY_MATRIX.md           # Ma trận truy vết RTM 100% yêu cầu MUST
-│   ├── TEST_DATA_SPECIFICATION.md                   # Quy chuẩn 100% dữ liệu nhân tạo (Zero CCCD)
-│   └── TEST_COVERAGE_GAP.md                         # Báo cáo khoảng trống bao phủ
-├── defects/                                         # HỒ SƠ KHUYẾT TẬT PHẦN MỀM
-│   └── DEFECT_REPORTS.md                            # Chi tiết 6 khuyết tật phần mềm và giải pháp
-└── reports/                                         # BỘ HỒ SƠ KIỂM THỬ HÀN LÂM
-    ├── SOFTWARE_TESTING_DOCUMENT.md                 # Tài liệu Kiểm thử Phần mềm Tổng thể 15 phần
-    └── TEST_REPORT.md                               # Báo cáo Kiểm thử Thực tế cho 2 Chức năng Cốt lõi
-```
+### 5.1. Bộ Hồ sơ Phân tích, Nghiệp vụ & Thiết kế Sản phẩm (`docs/`)
+- [`docs/BUSINESS_RULES.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/BUSINESS_RULES.md): Tập hợp 30+ quy tắc nghiệp vụ cốt lõi định danh chi tiết (`BR-AUTH`, `BR-KYC`, `BR-TEAM`, `BR-TRN`, `BR-CHK`, `BR-CERT`...).
+- [`docs/WORKFLOWS.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/WORKFLOWS.md): 08 quy trình luồng nghiệp vụ chuẩn (`WF-001` đến `WF-008`: Đăng ký, Duyệt KYC, Mở giải đấu, Ghép đội, Chia bảng, Điểm danh, Xử lý khiếu nại, Cấp phát chứng chỉ).
+- [`docs/DOMAIN_RULES.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/DOMAIN_RULES.md): Quy tắc miền Thể thao Điện tử (Thể thức Single/Double Elimination, BO1/3/5, Thuật toán phòng TFT 7-8 người, Xếp hạt giống Bye).
+- [`docs/ACCEPTANCE_CRITERIA.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/ACCEPTANCE_CRITERIA.md): Tiêu chuẩn nghiệm thu chức năng theo mô hình BDD / Given-When-Then.
+- [`docs/RBAC.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/RBAC.md): Ma trận phân quyền ma trận 4 vai trò (Participant, Seasonal Staff, Permanent Staff, Super Admin).
+- [`docs/FIGMA_HANDOFF.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/FIGMA_HANDOFF.md) & [`docs/FIGMA_TRACEABILITY.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/FIGMA_TRACEABILITY.md): Đặc tả thiết kế giao diện UI/UX từ Figma, hệ thống Design Tokens Cyberpunk, liên kết màn hình và truy vết sang SRS.
+- [`docs/SCHEMA_MISMATCH_INVENTORY.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/SCHEMA_MISMATCH_INVENTORY.md): Bảng đối soát chi tiết độ lệch giữa tài liệu SRS và Schema CSDL vật lý.
+- [`docs/SRS_IMPLEMENTATION_GAP_ANALYSIS.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/SRS_IMPLEMENTATION_GAP_ANALYSIS.md) & [`docs/SRS_RECONCILIATION_PLAN.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/SRS_RECONCILIATION_PLAN.md): Phân tích khoảng cách triển khai mã nguồn và kế hoạch điều chỉnh tương thích.
+- [`docs/CONFLICT_REGISTRY.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/CONFLICT_REGISTRY.md): Sổ đăng ký xử lý các xung đột yêu cầu nghiệp vụ giữa các bên liên quan.
+- [`docs/tasks/`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/tasks/): 12 hồ sơ phân rã tác vụ kỹ thuật chi tiết (`TASK-AUTH-001` đến `TASK-RBAC-001`, `TASK-FOUND-001A-G`...).
+
+### 5.2. Bộ Hồ sơ Kiểm toán SRS & Kiến trúc Kiểm thử Phần mềm (`docs/testing/`)
+- **Khảo sát & Quản lý Dự án:** `REPOSITORY_AUDIT.md`, `PROJECT_PLAN.md`, `TASK_BOARD.md`, `WORK_LOG.md`.
+- **Hồ sơ Kiểm toán SRS 1.1 (`docs/testing/srs-audit/`):**
+  - `SRS_AUDIT_REPORT.md`: Báo cáo kiểm toán chuyên sâu 8 vùng rủi ro logic.
+  - `SRS_ISSUES.md`: Danh mục 10 lỗi SRS kèm phản ví dụ toán học/logic.
+  - `SRS_IMPROVEMENT_PROPOSAL.md`: Đề xuất cải tiến kỹ thuật đồng bộ.
+  - `BUSINESS_RULE_GAPS.md`: Phân tích 6 khoảng trống quy tắc nghiệp vụ.
+  - `DATABASE_CONSISTENCY_REPORT.md`: Báo cáo đối soát 18 bảng CSDL vật lý.
+  - `STATE_TRANSITION_MATRIX.md`: Ma trận chuyển trạng thái hình thức giải đấu và trận đấu.
+  - `DECISION_LOG.md`: Nhật ký quyết định kiến trúc và kỹ thuật.
+  - `SRS_REVISED_DRAFT.md`: Bản thảo cải tiến SRS 1.2 Draft.
+- **Bộ Thiết kế Kiểm thử Chuẩn ISO/IEC/IEEE 29119 (`docs/testing/test-design/`):**
+  - `TEST_PLAN.md`: Kế hoạch kiểm thử tổng thể (Master Test Plan).
+  - `TEST_STRATEGY.md`: Chiến lược kiểm thử thống nhất 5 tầng cho Solo Developer.
+  - `TEST_SCENARIOS.md`: Danh mục 23 kịch bản kiểm thử bao phủ.
+  - `TEST_CASES.md`: Đặc tả 17 ca kiểm thử chi tiết.
+  - `REQUIREMENT_TRACEABILITY_MATRIX.md`: Ma trận truy vết RTM 100% yêu cầu MUST.
+  - `TEST_DATA_SPECIFICATION.md`: Quy chuẩn 100% dữ liệu thử nghiệm nhân tạo (Zero CCCD).
+  - `TEST_COVERAGE_GAP.md`: Báo cáo phân tích khoảng trống bao phủ.
+- **Hồ sơ Báo cáo Học thuật (`docs/testing/reports/`):**
+  - `SOFTWARE_TESTING_DOCUMENT.md`: Tài liệu Kiểm thử Phần mềm Tổng thể 15 phần chuẩn học thuật.
 
 ---
 
