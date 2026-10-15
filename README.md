@@ -1,6 +1,8 @@
 # NỀN TẢNG QUẢN LÝ GIẢI ĐẤU THỂ THAO ĐIỆN TỬ DUT ESPORTS
 ## DUT ESPORTS Tournament Management Platform — Documentation & Software Testing Architecture
 
+🌐 **Ngôn ngữ / Language:** **[Tiếng Việt](README.md)** | **[English](README.en.md)**
+
 [![Status: Active](https://img.shields.io/badge/Status-Active-brightgreen.svg)]()
 [![Specification: SRS 1.1 / 1.2-Draft](https://img.shields.io/badge/Specification-SRS%201.1%20%2F%201.2--Draft-blue.svg)]()
 [![Architecture: Event--Driven](https://img.shields.io/badge/Architecture-EDA%20%2B%20RESTful-orange.svg)]()
@@ -32,18 +34,22 @@ Hệ sinh thái nền tảng DUT ESPORTS được phân tách thành 3 phân h�
 ```text
 D:\DUT ESPORTS\
 ├── Web-giai-dau-docs/           # [REPOSITORY NÀY] Đặc tả Nghiệp vụ, Thiết kế CSDL & Kiểm thử
+│   ├── README.md                # Tài liệu Giới thiệu Tổng quan (Bản Tiếng Việt)
+│   ├── README.en.md             # Project Overview & Architecture (Bản Tiếng Anh)
 │   ├── SRS.md                   # Đặc tả Yêu cầu Phần mềm phiên bản 1.1 (IEEE Std 830-1998)
 │   ├── database_schema.sql      # Lược đồ DDL PostgreSQL 18 bảng chuẩn hóa (v2.0)
 │   ├── migrations.sql           # Tập lệnh Migration và đồng bộ chỉ mục toàn vẹn
-│   ├── docs/                    # HỆ THỐNG TÀI LIỆU DỰ ÁN TOÀN DIỆN
-│   │   ├── BUSINESS_RULES.md    # 30+ Quy tắc nghiệp vụ chi tiết (BR-AUTH, BR-KYC, BR-TRN...)
-│   │   ├── WORKFLOWS.md         # Quy trình nghiệp vụ 8 luồng vận hành (WF-001 -> WF-008)
-│   │   ├── DOMAIN_RULES.md      # Quy tắc miền Esports (Elimination, TFT, Byes, BOx)
-│   │   ├── ACCEPTANCE_CRITERIA.md # Tiêu chuẩn nghiệm thu chức năng
-│   │   ├── RBAC.md              # Ma trận phân quyền truy cập 4 vai trò
-│   │   ├── FIGMA_*.md           # Đặc tả Handoff UI/UX & Traceability từ thiết kế
-│   │   ├── tasks/               # 12 Hồ sơ đặc tả tác vụ kỹ thuật chi tiết
-│   │   └── testing/             # Bộ hồ sơ Kiểm toán SRS, Kế hoạch & Kịch bản Kiểm thử
+│   ├── docs/                    # HỆ THỐNG TÀI LIỆU DỰ ÁN PHÂN TÁCH SONG NGỮ
+│   │   ├── en/                  # [BẢN TIẾNG ANH] Product Analysis, Business Rules & Tasks
+│   │   │   ├── BUSINESS_RULES.md
+│   │   │   ├── WORKFLOWS.md
+│   │   │   ├── DOMAIN_RULES.md
+│   │   │   ├── ACCEPTANCE_CRITERIA.md
+│   │   │   ├── RBAC.md
+│   │   │   ├── FIGMA_*.md
+│   │   │   └── tasks/           # 12 Hồ sơ đặc tả tác vụ kỹ thuật chi tiết
+│   │   └── vi/                  # [BẢN TIẾNG VIỆT] Kiểm toán SRS & Kiến trúc Kiểm thử
+│   │       └── testing/         # Hồ sơ Kiểm toán SRS 1.1, Kế hoạch & Kịch bản Kiểm thử ISO 29119
 │   └── tests/                   # Khung tự động hóa kiểm thử 5 tầng (Node.js Native + Playwright)
 │
 ├── Web-giai-dau/                # [BACKEND REPOSITORY] API Server
@@ -112,39 +118,39 @@ Dự án tập trung kiểm định chuyên sâu vào **02 Chức năng Cốt l�
 
 Toàn bộ hệ thống tài liệu đặc tả, phân tích thiết kế và kiểm thử được tổ chức quy chuẩn tại thư mục `docs/`:
 
-### 5.1. Bộ Hồ sơ Phân tích, Nghiệp vụ & Thiết kế Sản phẩm (`docs/`)
-- [`docs/BUSINESS_RULES.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/BUSINESS_RULES.md): Tập hợp 30+ quy tắc nghiệp vụ cốt lõi định danh chi tiết (`BR-AUTH`, `BR-KYC`, `BR-TEAM`, `BR-TRN`, `BR-CHK`, `BR-CERT`...).
-- [`docs/WORKFLOWS.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/WORKFLOWS.md): 08 quy trình luồng nghiệp vụ chuẩn (`WF-001` đến `WF-008`: Đăng ký, Duyệt KYC, Mở giải đấu, Ghép đội, Chia bảng, Điểm danh, Xử lý khiếu nại, Cấp phát chứng chỉ).
-- [`docs/DOMAIN_RULES.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/DOMAIN_RULES.md): Quy tắc miền Thể thao Điện tử (Thể thức Single/Double Elimination, BO1/3/5, Thuật toán phòng TFT 7-8 người, Xếp hạt giống Bye).
-- [`docs/ACCEPTANCE_CRITERIA.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/ACCEPTANCE_CRITERIA.md): Tiêu chuẩn nghiệm thu chức năng theo mô hình BDD / Given-When-Then.
-- [`docs/RBAC.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/RBAC.md): Ma trận phân quyền ma trận 4 vai trò (Participant, Seasonal Staff, Permanent Staff, Super Admin).
-- [`docs/FIGMA_HANDOFF.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/FIGMA_HANDOFF.md) & [`docs/FIGMA_TRACEABILITY.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/FIGMA_TRACEABILITY.md): Đặc tả thiết kế giao diện UI/UX từ Figma, hệ thống Design Tokens Cyberpunk, liên kết màn hình và truy vết sang SRS.
-- [`docs/SCHEMA_MISMATCH_INVENTORY.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/SCHEMA_MISMATCH_INVENTORY.md): Bảng đối soát chi tiết độ lệch giữa tài liệu SRS và Schema CSDL vật lý.
-- [`docs/SRS_IMPLEMENTATION_GAP_ANALYSIS.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/SRS_IMPLEMENTATION_GAP_ANALYSIS.md) & [`docs/SRS_RECONCILIATION_PLAN.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/SRS_RECONCILIATION_PLAN.md): Phân tích khoảng cách triển khai mã nguồn và kế hoạch điều chỉnh tương thích.
-- [`docs/CONFLICT_REGISTRY.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/CONFLICT_REGISTRY.md): Sổ đăng ký xử lý các xung đột yêu cầu nghiệp vụ giữa các bên liên quan.
-- [`docs/tasks/`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/tasks/): 12 hồ sơ phân rã tác vụ kỹ thuật chi tiết (`TASK-AUTH-001` đến `TASK-RBAC-001`, `TASK-FOUND-001A-G`...).
+### 5.1. Phân hệ Tài liệu Tiếng Anh — Đặc tả & Phân tích Thiết kế Sản phẩm ([`docs/en/`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/en/))
+- [`docs/en/BUSINESS_RULES.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/en/BUSINESS_RULES.md): Tập hợp 30+ quy tắc nghiệp vụ cốt lõi định danh chi tiết (`BR-AUTH`, `BR-KYC`, `BR-TEAM`, `BR-TRN`, `BR-CHK`, `BR-CERT`...).
+- [`docs/en/WORKFLOWS.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/en/WORKFLOWS.md): 08 quy trình luồng nghiệp vụ chuẩn (`WF-001` đến `WF-008`: Đăng ký, Duyệt KYC, Mở giải đấu, Ghép đội, Chia bảng, Điểm danh, Xử lý khiếu nại, Cấp phát chứng chỉ).
+- [`docs/en/DOMAIN_RULES.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/en/DOMAIN_RULES.md): Quy tắc miền Thể thao Điện tử (Thể thức Single/Double Elimination, BO1/3/5, Thuật toán phòng TFT 7-8 người, Xếp hạt giống Bye).
+- [`docs/en/ACCEPTANCE_CRITERIA.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/en/ACCEPTANCE_CRITERIA.md): Tiêu chuẩn nghiệm thu chức năng theo mô hình BDD / Given-When-Then.
+- [`docs/en/RBAC.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/en/RBAC.md): Ma trận phân quyền 4 vai trò (Participant, Seasonal Staff, Permanent Staff, Super Admin).
+- [`docs/en/FIGMA_HANDOFF.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/en/FIGMA_HANDOFF.md) & [`docs/en/FIGMA_TRACEABILITY.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/en/FIGMA_TRACEABILITY.md): Đặc tả thiết kế giao diện UI/UX từ Figma, hệ thống Design Tokens Cyberpunk, liên kết màn hình và truy vết sang SRS.
+- [`docs/en/SCHEMA_MISMATCH_INVENTORY.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/en/SCHEMA_MISMATCH_INVENTORY.md): Bảng đối soát chi tiết độ lệch giữa tài liệu SRS và Schema CSDL vật lý.
+- [`docs/en/SRS_IMPLEMENTATION_GAP_ANALYSIS.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/en/SRS_IMPLEMENTATION_GAP_ANALYSIS.md) & [`docs/en/SRS_RECONCILIATION_PLAN.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/en/SRS_RECONCILIATION_PLAN.md): Phân tích khoảng cách triển khai mã nguồn và kế hoạch điều chỉnh tương thích.
+- [`docs/en/CONFLICT_REGISTRY.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/en/CONFLICT_REGISTRY.md): Sổ đăng ký xử lý các xung đột yêu cầu nghiệp vụ giữa các bên liên quan.
+- [`docs/en/tasks/`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/en/tasks/): 12 hồ sơ phân rã tác vụ kỹ thuật chi tiết (`TASK-AUTH-001` đến `TASK-RBAC-001`, `TASK-FOUND-001A-G`...).
 
-### 5.2. Bộ Hồ sơ Kiểm toán SRS & Kiến trúc Kiểm thử Phần mềm (`docs/testing/`)
-- **Khảo sát & Quản lý Dự án:** `REPOSITORY_AUDIT.md`, `PROJECT_PLAN.md`, `TASK_BOARD.md`, `WORK_LOG.md`.
-- **Hồ sơ Kiểm toán SRS 1.1 (`docs/testing/srs-audit/`):**
-  - `SRS_AUDIT_REPORT.md`: Báo cáo kiểm toán chuyên sâu 8 vùng rủi ro logic.
-  - `SRS_ISSUES.md`: Danh mục 10 lỗi SRS kèm phản ví dụ toán học/logic.
-  - `SRS_IMPROVEMENT_PROPOSAL.md`: Đề xuất cải tiến kỹ thuật đồng bộ.
-  - `BUSINESS_RULE_GAPS.md`: Phân tích 6 khoảng trống quy tắc nghiệp vụ.
-  - `DATABASE_CONSISTENCY_REPORT.md`: Báo cáo đối soát 18 bảng CSDL vật lý.
-  - `STATE_TRANSITION_MATRIX.md`: Ma trận chuyển trạng thái hình thức giải đấu và trận đấu.
-  - `DECISION_LOG.md`: Nhật ký quyết định kiến trúc và kỹ thuật.
-  - `SRS_REVISED_DRAFT.md`: Bản thảo cải tiến SRS 1.2 Draft.
-- **Bộ Thiết kế Kiểm thử Chuẩn ISO/IEC/IEEE 29119 (`docs/testing/test-design/`):**
-  - `TEST_PLAN.md`: Kế hoạch kiểm thử tổng thể (Master Test Plan).
-  - `TEST_STRATEGY.md`: Chiến lược kiểm thử thống nhất 5 tầng cho Solo Developer.
-  - `TEST_SCENARIOS.md`: Danh mục 23 kịch bản kiểm thử bao phủ.
-  - `TEST_CASES.md`: Đặc tả 17 ca kiểm thử chi tiết.
-  - `REQUIREMENT_TRACEABILITY_MATRIX.md`: Ma trận truy vết RTM 100% yêu cầu MUST.
-  - `TEST_DATA_SPECIFICATION.md`: Quy chuẩn 100% dữ liệu thử nghiệm nhân tạo (Zero CCCD).
-  - `TEST_COVERAGE_GAP.md`: Báo cáo phân tích khoảng trống bao phủ.
-- **Hồ sơ Báo cáo Học thuật (`docs/testing/reports/`):**
-  - `SOFTWARE_TESTING_DOCUMENT.md`: Tài liệu Kiểm thử Phần mềm Tổng thể 15 phần chuẩn học thuật.
+### 5.2. Phân hệ Tài liệu Tiếng Việt — Kiểm toán SRS & Kiến trúc Kiểm thử Phần mềm ([`docs/vi/testing/`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/))
+- **Khảo sát & Quản lý Dự án:** [`REPOSITORY_AUDIT.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/REPOSITORY_AUDIT.md), [`PROJECT_PLAN.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/PROJECT_PLAN.md), [`TASK_BOARD.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/TASK_BOARD.md), [`WORK_LOG.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/WORK_LOG.md).
+- **Hồ sơ Kiểm toán SRS 1.1 ([`docs/vi/testing/srs-audit/`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/srs-audit/)):**
+  - [`SRS_AUDIT_REPORT.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/srs-audit/SRS_AUDIT_REPORT.md): Báo cáo kiểm toán chuyên sâu 8 vùng rủi ro logic.
+  - [`SRS_ISSUES.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/srs-audit/SRS_ISSUES.md): Danh mục 10 lỗi SRS kèm phản ví dụ toán học/logic.
+  - [`SRS_IMPROVEMENT_PROPOSAL.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/srs-audit/SRS_IMPROVEMENT_PROPOSAL.md): Đề xuất cải tiến kỹ thuật đồng bộ.
+  - [`BUSINESS_RULE_GAPS.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/srs-audit/BUSINESS_RULE_GAPS.md): Phân tích 6 khoảng trống quy tắc nghiệp vụ.
+  - [`DATABASE_CONSISTENCY_REPORT.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/srs-audit/DATABASE_CONSISTENCY_REPORT.md): Báo cáo đối soát 18 bảng CSDL vật lý.
+  - [`STATE_TRANSITION_MATRIX.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/srs-audit/STATE_TRANSITION_MATRIX.md): Ma trận chuyển trạng thái hình thức giải đấu và trận đấu.
+  - [`DECISION_LOG.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/srs-audit/DECISION_LOG.md): Nhật ký quyết định kiến trúc và kỹ thuật.
+  - [`SRS_REVISED_DRAFT.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/srs-audit/SRS_REVISED_DRAFT.md): Bản thảo cải tiến SRS 1.2 Draft.
+- **Bộ Thiết kế Kiểm thử Chuẩn ISO/IEC/IEEE 29119 ([`docs/vi/testing/test-design/`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/test-design/)):**
+  - [`TEST_PLAN.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/test-design/TEST_PLAN.md): Kế hoạch kiểm thử tổng thể (Master Test Plan).
+  - [`TEST_STRATEGY.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/test-design/TEST_STRATEGY.md): Chiến lược kiểm thử thống nhất 5 tầng cho Solo Developer.
+  - [`TEST_SCENARIOS.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/test-design/TEST_SCENARIOS.md): Danh mục 23 kịch bản kiểm thử bao phủ.
+  - [`TEST_CASES.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/test-design/TEST_CASES.md): Đặc tả 17 ca kiểm thử chi tiết.
+  - [`REQUIREMENT_TRACEABILITY_MATRIX.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/test-design/REQUIREMENT_TRACEABILITY_MATRIX.md): Ma trận truy vết RTM 100% yêu cầu MUST.
+  - [`TEST_DATA_SPECIFICATION.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/test-design/TEST_DATA_SPECIFICATION.md): Quy chuẩn 100% dữ liệu thử nghiệm nhân tạo (Zero CCCD).
+  - [`TEST_COVERAGE_GAP.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/test-design/TEST_COVERAGE_GAP.md): Báo cáo phân tích khoảng trống bao phủ.
+- **Hồ sơ Báo cáo Học thuật ([`docs/vi/testing/reports/`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/reports/)):**
+  - [`SOFTWARE_TESTING_DOCUMENT.md`](file:///D:/DUT%20ESPORTS/Web-giai-dau-docs/docs/vi/testing/reports/SOFTWARE_TESTING_DOCUMENT.md): Tài liệu Kiểm thử Phần mềm Tổng thể 15 phần chuẩn học thuật.
 
 ---
 
